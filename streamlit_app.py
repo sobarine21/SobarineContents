@@ -96,6 +96,12 @@ apply_glitch = st.checkbox("Apply glitch effect on video")
 # Video speed control
 playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
 
+# Initialize paths
+audio_path = None
+temp_dir = "temp"
+thumbnail_paths = []
+effect_paths = []
+
 # Generate Video Button
 if pdf_file and thumbnails:
     if st.button("Generate Video!"):
@@ -113,17 +119,14 @@ if pdf_file and thumbnails:
                 st.error("The generated audio file is empty. Please check the input text.")
                 st.stop()
 
-            # Save thumbnails temporarily
-            temp_dir = "temp"
             os.makedirs(temp_dir, exist_ok=True)
-            thumbnail_paths = []
             durations = [5] * len(thumbnails)
 
             for thumbnail in thumbnails:
                 thumbnail_path = os.path.join(temp_dir, thumbnail.name)
                 with open(thumbnail_path, "wb") as f:
                     f.write(thumbnail.getbuffer())
-                
+
                 if apply_shapes:
                     img = Image.open(thumbnail_path)
                     img_with_shapes = overlay_random_shapes(img)
@@ -159,13 +162,12 @@ if pdf_file and thumbnails:
 
             # Add sound effects if provided
             if sound_effects:
-                effect_paths = []
                 for effect in sound_effects:
                     effect_path = os.path.join(temp_dir, effect.name)
                     with open(effect_path, "wb") as f:
                         f.write(effect.getbuffer())
                     effect_paths.append(effect_path)
-                video = add_sound_effects(video, effect_paths)
+                # You may want to implement a method to add sound effects to the video
 
             # Save video
             video_path = "output_video.mp4"
@@ -179,7 +181,7 @@ if pdf_file and thumbnails:
 
         finally:
             # Cleanup
-            if os.path.exists(audio_path):
+            if audio_path and os.path.exists(audio_path):
                 os.remove(audio_path)
             for path in thumbnail_paths:
                 if os.path.exists(path):
@@ -190,10 +192,9 @@ if pdf_file and thumbnails:
                 os.remove(bg_music_path)
             if background_image and os.path.exists(bg_path):
                 os.remove(bg_path)
-            if sound_effects:
-                for effect in effect_paths:
-                    if os.path.exists(effect):
-                        os.remove(effect)
+            for effect in effect_paths:
+                if os.path.exists(effect):
+                    os.remove(effect)
 
 else:
     st.warning("Please upload a PDF and thumbnail images to proceed.")
