@@ -1,6 +1,6 @@
 import streamlit as st
 from moviepy.editor import *
-from moviepy.video.fx.all import fadein, fadeout  # Import fadein and fadeout
+from moviepy.video.fx.all import fadein, fadeout, slide_in, zoom_in
 import fitz  # PyMuPDF
 from gtts import gTTS
 import os
@@ -20,32 +20,51 @@ def create_audio_from_text(text, lang='en'):
     tts.save(audio_path)
     return audio_path
 
-def create_custom_text_image(text, size=(640, 480), font_size=24):
+def create_custom_text_image(text, size=(640, 480), font_size=24, color='black', position='bottom'):
     image = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
-    draw.text((10, 10), text, fill="black", font=font)
+    text_position = (10, size[1] - font_size - 10) if position == 'bottom' else (10, 10)
+    draw.text(text_position, text, fill=color, font=font)
     return np.array(image)
 
-def create_video_with_transitions(thumbnails, audio_path, durations, transition_type='fade'):
+def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays, transition_effect):
     clips = []
+    audio_clip = AudioFileClip(audio_path)
+    total_duration = audio_clip.duration
     
+    if thumbnails:
+        persistent_thumbnail = ImageClip(thumbnails[0]).set_duration(total_duration)
+        clips.append(persistent_thumbnail)
+
     for idx, thumbnail in enumerate(thumbnails):
-        image = ImageClip(thumbnail).set_duration(durations[idx])
-        
-        # Apply transitions
-        if transition_type == 'fade':
+        duration = durations[idx]
+        image = ImageClip(thumbnail).set_duration(duration)
+
+        if transition_effect == 'fade':
             image = fadein(image, 1).fadeout(1)
-        
+        elif transition_effect == 'slide':
+            image = slide_in(image, 1)
+        elif transition_effect == 'zoom':
+            image = zoom_in(image, 1)
+
+        if text_overlays and idx < len(text_overlays):
+            text_image = create_custom_text_image(text_overlays[idx], size=image.size)
+            text_clip = ImageClip(text_image).set_duration(duration).set_position('bottom')
+            clips.append(text_clip)
+
         clips.append(image)
 
     video = concatenate_videoclips(clips, method="compose")
-    audio = AudioFileClip(audio_path)
-    return video.set_audio(audio)
+    return video.set_audio(audio_clip)
 
 def add_background_effects(video, background_path):
     background = ImageClip(background_path).set_duration(video.duration)
     return CompositeVideoClip([background, video])
+
+def add_watermark(video, watermark_path):
+    watermark = ImageClip(watermark_path).set_duration(video.duration).set_position(("right", "bottom")).set_opacity(0.5)
+    return CompositeVideoClip([video, watermark])
 
 # Streamlit UI
 st.title("Enhanced PDF to Video with Speech")
@@ -55,9 +74,19 @@ pdf_file = st.file_uploader("Upload a PDF file", type="pdf")
 thumbnails = st.file_uploader("Upload thumbnail images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 background_music = st.file_uploader("Upload background music (optional)", type=["mp3", "wav"])
 background_image = st.file_uploader("Upload a background image (optional)", type=["png", "jpg", "jpeg"])
+watermark_image = st.file_uploader("Upload a watermark image (optional)", type=["png", "jpg", "jpeg"])
 
-# New feature: Custom Text Input
-text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)")
+# New feature: Custom Text Input for overlays
+text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
+
+# Language selection for audio
+language = st.selectbox("Select audio language:", ['en', 'es', 'fr', 'de'])
+
+# Video speed control
+playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
+
+# Select transition effect
+transition_effect = st.selectbox("Select transition effect:", ['fade', 'slide', 'zoom'])
 
 if pdf_file and thumbnails:
     if st.button("Generate Video"):
@@ -65,7 +94,7 @@ if pdf_file and thumbnails:
         pdf_text = pdf_to_text(pdf_file)
 
         # Create audio from the text
-        audio_path = create_audio_from_text(pdf_text)
+        audio_path = create_audio_from_text(pdf_text, lang=language)
 
         # Save thumbnails temporarily
         temp_dir = "temp"
@@ -79,8 +108,11 @@ if pdf_file and thumbnails:
                 f.write(thumbnail.getbuffer())
             thumbnail_paths.append(thumbnail_path)
 
-        # Create video with transitions
-        video = create_video_with_transitions(thumbnail_paths, audio_path, durations)
+        # Create video with transitions and persistent thumbnail
+        video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays, transition_effect)
+
+        # Adjust playback speed
+        video = video.fx(vfx.speedx, playback_speed)
 
         # Add background effects if provided
         if background_image:
@@ -97,6 +129,13 @@ if pdf_file and thumbnails:
             bg_audio = AudioFileClip(bg_music_path)
             video = video.set_audio(CompositeAudioClip([video.audio, bg_audio]))
 
+        # Add watermark if provided
+        if watermark_image:
+            watermark_path = os.path.join(temp_dir, "watermark.png")
+            with open(watermark_path, "wb") as f:
+                f.write(watermark_image.getbuffer())
+            video = add_watermark(video, watermark_path)
+
         # Save video
         video_path = "output_video.mp4"
         video.write_videofile(video_path, fps=24)
@@ -112,5 +151,7 @@ if pdf_file and thumbnails:
             os.remove(bg_music_path)
         if background_image:
             os.remove(bg_path)
+        if watermark_image:
+            os.remove(watermark_path)
 else:
     st.warning("Please upload a PDF and thumbnail images to proceed.")
