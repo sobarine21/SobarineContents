@@ -105,10 +105,9 @@ if pdf_file and thumbnails:
             # Create video with transitions and persistent thumbnail
             video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
 
-            # Check if the total video duration matches the audio duration
-            total_video_duration = video.duration
-            if total_video_duration > audio_duration:
-                st.warning("The video is longer than the audio. It may cut off the audio at the end.")
+            # Trim video if it exceeds audio duration
+            if video.duration > audio_duration:
+                video = video.subclip(0, audio_duration)
 
             # Adjust playback speed
             video = video.fx(vfx.speedx, playback_speed)
