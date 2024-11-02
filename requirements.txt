@@ -2,3 +2,4 @@ streamlit
 moviepy 
 PyMuPDF
 gtts
+pillow
