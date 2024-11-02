@@ -60,11 +60,11 @@ def add_background_effects(video, background_path):
     return CompositeVideoClip([background, video])
 
 # Streamlit UI
-st.title("Enhanced PDF to Video with Speech")
+st.title("Youtube Video Creator")
 
 # File uploads
-pdf_file = st.file_uploader("Upload a PDF file", type="pdf")
-thumbnails = st.file_uploader("Upload thumbnail images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+pdf_file = st.file_uploader("Upload content pdf", type="pdf")
+thumbnails = st.file_uploader("Upload  images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 background_music = st.file_uploader("Upload background music (optional)", type=["mp3", "wav"])
 background_image = st.file_uploader("Upload a background image (optional)", type=["png", "jpg", "jpeg"])
 
