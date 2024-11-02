@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 from moviepy.editor import *
-from moviepy.video.fx.all import fadein, fadeout, speedx, colorx
+from moviepy.video.fx.all import fadein, fadeout, speedx
 import fitz
 from gtts import gTTS
 import os
@@ -29,7 +29,7 @@ def create_custom_text_image(text, size=(640, 480), font_size=24):
     font = ImageFont.load_default()
     wrapped_text = textwrap.fill(text, width=30)
     draw.text((10, 10), wrapped_text, fill="black", font=font)
-    return np.array(image)
+    return image
 
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays):
     clips = []
@@ -37,12 +37,13 @@ def create_video_with_transitions(thumbnails, audio_path, durations, text_overla
 
     for idx, thumbnail in enumerate(thumbnails):
         duration = durations[idx]
-        image = ImageClip(thumbnail).set_duration(duration)
-        image = fadein(image, 1).fadeout(1)
+        image = ImageClip(thumbnail).set_duration(duration).fx(fadein, 1).fx(fadeout, 1)
 
         if text_overlays and idx < len(text_overlays):
             text_image = create_custom_text_image(text_overlays[idx], size=image.size)
-            text_clip = ImageClip(text_image).set_duration(duration).set_position('bottom')
+            text_image_path = "temp_text_image.png"
+            text_image.save(text_image_path)
+            text_clip = ImageClip(text_image_path).set_duration(duration).set_position('bottom')
             clips.append(text_clip)
 
         clips.append(image)
@@ -54,12 +55,9 @@ def add_background_effects(video, background_path):
     background = ImageClip(background_path).set_duration(video.duration)
     return CompositeVideoClip([background, video])
 
-# Dynamic blue-themed background color function
-def get_blue_shade():
-    shades_of_blue = ['#E0F7FA', '#B2EBF2', '#80DEEA', '#4DD0E1', '#26C6DA', '#00BCD4', '#00ACC1']
-    return random.choice(shades_of_blue)
+def random_color():
+    return tuple(random.randint(0, 255) for _ in range(3))
 
-# Additional features
 def overlay_random_shapes(image):
     draw = ImageDraw.Draw(image)
     for _ in range(random.randint(3, 10)):
@@ -74,19 +72,12 @@ def overlay_random_shapes(image):
             x1, y1 = random.randint(0, image.size[0]), random.randint(0, image.size[1])
             x2, y2 = random.randint(x1, image.size[0]), random.randint(y1, image.size[1])
             draw.rectangle((x1, y1, x2, y2), fill=color, outline=color)
-    return np.array(image)
-
-def random_color():
-    return tuple(random.randint(0, 255) for _ in range(3))
+    return image
 
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 YouTube Video Creator 🌊")
 st.markdown("<h2 style='color: #003366; text-align: center;'>Create Stunning Videos Effortlessly!</h2>", unsafe_allow_html=True)
-
-# Set dynamic blue background color
-background_color = get_blue_shade()
-st.markdown(f"<style>body {{ background-color: {background_color}; }}</style>", unsafe_allow_html=True)
 
 # Main content
 st.header("Upload Your Content")
@@ -132,11 +123,12 @@ if pdf_file and thumbnails:
                 thumbnail_path = os.path.join(temp_dir, thumbnail.name)
                 with open(thumbnail_path, "wb") as f:
                     f.write(thumbnail.getbuffer())
+                
                 if apply_shapes:
-                    # Overlay random shapes if the option is checked
-                    img_array = overlay_random_shapes(np.array(Image.open(thumbnail_path)))
+                    img = Image.open(thumbnail_path)
+                    img_with_shapes = overlay_random_shapes(img)
                     img_with_shapes_path = os.path.join(temp_dir, "shaped_" + thumbnail.name)
-                    Image.fromarray(img_array).save(img_with_shapes_path)
+                    img_with_shapes.save(img_with_shapes_path)
                     thumbnail_paths.append(img_with_shapes_path)
                 else:
                     thumbnail_paths.append(thumbnail_path)
@@ -174,10 +166,6 @@ if pdf_file and thumbnails:
                         f.write(effect.getbuffer())
                     effect_paths.append(effect_path)
                 video = add_sound_effects(video, effect_paths)
-
-            # Apply glitch effect if checked
-            if apply_glitch:
-                video = apply_glitch_effect(video)
 
             # Save video
             video_path = "output_video.mp4"
