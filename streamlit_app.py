@@ -34,7 +34,8 @@ def slide_effect(clip, duration, start_pos=(-clip.w, 0)):
 def zoom_effect(clip, duration, zoom_factor=1.2):
     """Zoom the clip in over the specified duration."""
     def make_frame(t):
-        return clip.resize(1 + (zoom_factor - 1) * (t / duration)).get_frame(t)
+        current_zoom = 1 + (zoom_factor - 1) * (t / duration)
+        return clip.resize(current_zoom).get_frame(t)
     return VideoClip(make_frame, duration=duration)
 
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays, transition_effect):
