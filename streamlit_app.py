@@ -1,8 +1,8 @@
 import streamlit as st
 from moviepy.editor import *
 import fitz  # PyMuPDF
+from gtts import gTTS
 import os
-from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
 def pdf_to_text(pdf_file):
@@ -12,51 +12,46 @@ def pdf_to_text(pdf_file):
         text += page.get_text()
     return text
 
-def create_text_image(text, size=(640, 480), font_size=24):
-    # Create an image with white background
-    image = Image.new("RGB", size, (255, 255, 255))
-    draw = ImageDraw.Draw(image)
+def create_audio_from_text(text):
+    tts = gTTS(text=text, lang='en')
+    audio_path = "output_audio.mp3"
+    tts.save(audio_path)
+    return audio_path
 
-    # Use a default font
-    font = ImageFont.load_default()
-    draw.text((10, 10), text, fill="black", font=font)
-
-    # Convert to numpy array and then to ImageClip
-    return ImageClip(np.array(image)).set_duration(5)
-
-def create_video(pdf_text, thumbnails):
+def create_video(thumbnails, audio_path):
     clips = []
     
     for thumbnail in thumbnails:
-        image = ImageClip(thumbnail).set_duration(2)  # 2 seconds for each thumbnail
+        image = ImageClip(thumbnail).set_duration(5)  # 5 seconds for each thumbnail
         clips.append(image)
-
-    # Create a text image
-    text_image = create_text_image(pdf_text, size=(640, 480), font_size=24)
-    clips.append(text_image)
 
     # Combine all clips
     video = concatenate_videoclips(clips, method="compose")
-    
+
+    # Load audio and set it to the video
+    audio = AudioFileClip(audio_path)
+    video = video.set_audio(audio)
+
     return video
 
 # Streamlit UI
-st.title("PDF to Video Generator")
+st.title("PDF to Video with Speech")
 
 # File upload
 pdf_file = st.file_uploader("Upload a PDF file", type="pdf")
 thumbnails = st.file_uploader("Upload thumbnail images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-
-# Ensure temp directory exists
-temp_dir = "temp"
-os.makedirs(temp_dir, exist_ok=True)
 
 if pdf_file and thumbnails:
     if st.button("Generate Video"):
         # Read PDF text
         pdf_text = pdf_to_text(pdf_file)
 
+        # Create audio from the text
+        audio_path = create_audio_from_text(pdf_text)
+
         # Save thumbnails temporarily
+        temp_dir = "temp"
+        os.makedirs(temp_dir, exist_ok=True)
         thumbnail_paths = []
         for thumbnail in thumbnails:
             thumbnail_path = os.path.join(temp_dir, thumbnail.name)
@@ -65,7 +60,7 @@ if pdf_file and thumbnails:
             thumbnail_paths.append(thumbnail_path)
 
         # Create video
-        video = create_video(pdf_text, thumbnail_paths)
+        video = create_video(thumbnail_paths, audio_path)
 
         # Save video
         video_path = "output_video.mp4"
@@ -75,6 +70,7 @@ if pdf_file and thumbnails:
         st.video(video_path)
 
         # Cleanup
+        os.remove(audio_path)
         for path in thumbnail_paths:
             os.remove(path)
 else:
