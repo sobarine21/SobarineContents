@@ -88,7 +88,7 @@ if pdf_file and thumbnails:
             audio_duration = audio_clip.duration
             if audio_duration == 0:
                 st.error("The generated audio file is empty. Please check the input text.")
-                return
+                st.stop()  # Stop execution of the current function
 
             # Save thumbnails temporarily
             temp_dir = "temp"
