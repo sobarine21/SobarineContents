@@ -66,18 +66,11 @@ def add_noise_effect(video):
     return CompositeVideoClip([video, noise.set_opacity(0.1)])
 
 def random_transition_effect(clips):
-    if random.choice([True, False]):
-        return [fadein(clip, 1) for clip in clips]
-    return clips
+    return [fadein(clip, 1) if random.choice([True, False]) else clip for clip in clips]
 
 def add_watermark(video, watermark_path):
     watermark = ImageClip(watermark_path).set_duration(video.duration).set_position(("right", "bottom"))
     return CompositeVideoClip([video, watermark.set_opacity(0.5)])
-
-def random_image_effect(image):
-    if random.choice([True, False]):
-        return image.fx(colorx, random.uniform(0.5, 1.5))
-    return image
 
 def generate_thumbnail_variations(thumbnail):
     variations = []
@@ -85,6 +78,33 @@ def generate_thumbnail_variations(thumbnail):
         variation = thumbnail.fx(colorx, random.uniform(0.5, 1.5))
         variations.append(variation)
     return variations
+
+def add_sound_effects(video, effects):
+    for effect in effects:
+        audio_effect = AudioFileClip(effect).set_duration(video.duration)
+        video = video.set_audio(CompositeAudioClip([video.audio, audio_effect]))
+    return video
+
+def overlay_random_shapes(image):
+    draw = ImageDraw.Draw(image)
+    for _ in range(random.randint(3, 10)):
+        shape_type = random.choice(['circle', 'rectangle'])
+        if shape_type == 'circle':
+            radius = random.randint(10, 50)
+            x = random.randint(radius, image.size[0] - radius)
+            y = random.randint(radius, image.size[1] - radius)
+            draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=random_color(), outline=random_color())
+        else:
+            x1, y1 = random.randint(0, image.size[0]), random.randint(0, image.size[1])
+            x2, y2 = random.randint(x1, image.size[0]), random.randint(y1, image.size[1])
+            draw.rectangle((x1, y1, x2, y2), fill=random_color(), outline=random_color())
+    return np.array(image)
+
+def random_color():
+    return tuple(random.randint(0, 255) for _ in range(3))
+
+def apply_glitch_effect(video):
+    return video.fx(vfx.freeze, t=video.duration / random.randint(2, 5))
 
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
@@ -102,9 +122,12 @@ thumbnails = st.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg
 background_music = st.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
 background_image = st.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
 watermark_image = st.file_uploader("Upload a watermark image (optional)", type=["png", "jpg", "jpeg"])
+sound_effects = st.file_uploader("Upload sound effects (optional)", type=["mp3", "wav"], accept_multiple_files=True)
 
 st.header("Customize Your Video")
 text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
+apply_shapes = st.checkbox("Overlay random shapes on images")
+apply_glitch = st.checkbox("Apply glitch effect on video")
 
 # Video speed control
 playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
@@ -141,7 +164,10 @@ if pdf_file and thumbnails:
             # Generate variations for thumbnails
             varied_thumbnails = []
             for path in thumbnail_paths:
-                varied_thumbnails.extend(generate_thumbnail_variations(ImageClip(path)))
+                img_clip = ImageClip(path)
+                if apply_shapes:
+                    img_clip = overlay_random_shapes(img_clip)
+                varied_thumbnails.extend(generate_thumbnail_variations(img_clip))
 
             # Create video with transitions and effects
             video_clips = random_transition_effect(varied_thumbnails)
@@ -171,13 +197,18 @@ if pdf_file and thumbnails:
                     f.write(watermark_image.getbuffer())
                 video = add_watermark(video, watermark_path)
 
-            # Add background music if provided
-            if background_music:
-                bg_music_path = os.path.join(temp_dir, "background_music.mp3")
-                with open(bg_music_path, "wb") as f:
-                    f.write(background_music.getbuffer())
-                bg_audio = AudioFileClip(bg_music_path)
-                video = video.set_audio(CompositeAudioClip([video.audio, bg_audio]))
+            # Add sound effects if provided
+            if sound_effects:
+                effect_paths = [os.path.join(temp_dir, effect.name) for effect in sound_effects]
+                for effect in sound_effects:
+                    effect_path = os.path.join(temp_dir, effect.name)
+                    with open(effect_path, "wb") as f:
+                        f.write(effect.getbuffer())
+                video = add_sound_effects(video, effect_paths)
+
+            # Apply glitch effect if checked
+            if apply_glitch:
+                video = apply_glitch_effect(video)
 
             # Save video
             video_path = "output_video.mp4"
@@ -202,6 +233,10 @@ if pdf_file and thumbnails:
                 os.remove(bg_music_path)
             if background_image and os.path.exists(bg_path):
                 os.remove(bg_path)
+            if sound_effects:
+                for effect in effect_paths:
+                    if os.path.exists(effect):
+                        os.remove(effect)
 
 else:
     st.warning("Please upload a PDF and thumbnail images to proceed.")
