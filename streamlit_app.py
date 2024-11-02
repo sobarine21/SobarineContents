@@ -1,7 +1,7 @@
 import streamlit as st
 from moviepy.editor import *
 from moviepy.video.fx.all import fadein, fadeout
-import fitz  # PyMuPDF
+import fitz
 from gtts import gTTS
 import os
 import numpy as np
@@ -29,8 +29,8 @@ def create_custom_text_image(text, size=(640, 480), font_size=24):
 
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays):
     clips = []
-    
-    # Get the total duration for the video from audio length
+
+    # Ensure audio clip duration is accurate
     audio_clip = AudioFileClip(audio_path)
     total_duration = audio_clip.duration
 
