@@ -13,51 +13,50 @@ def pdf_to_text(pdf_file):
         text += page.get_text()
     return text
 
-def create_audio_from_text(text):
-    tts = gTTS(text=text, lang='en')
+def create_audio_from_text(text, lang='en'):
+    tts = gTTS(text=text, lang=lang, slow=False)
     audio_path = "output_audio.mp3"
     tts.save(audio_path)
     return audio_path
 
-def create_text_image(text, size=(640, 480), font_size=24):
-    # Create an image with white background
+def create_custom_text_image(text, size=(640, 480), font_size=24):
     image = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(image)
-
-    # Use a default font
     font = ImageFont.load_default()
     draw.text((10, 10), text, fill="black", font=font)
-
     return np.array(image)
 
-def create_video(thumbnails, audio_path, text_list, durations):
+def create_video_with_transitions(thumbnails, audio_path, durations, transition_type='fade'):
     clips = []
     
     for idx, thumbnail in enumerate(thumbnails):
-        image = ImageClip(thumbnail).set_duration(durations[idx])  # Use specified duration for each thumbnail
+        image = ImageClip(thumbnail).set_duration(durations[idx])
+        
+        # Apply transitions
+        if transition_type == 'fade':
+            image = fadein(image, 1).fadeout(1)
+        
         clips.append(image)
 
-        # Create and add text overlay for each thumbnail
-        text_image = create_text_image(text_list[idx], size=image.size)
-        text_clip = ImageClip(text_image).set_duration(durations[idx]).set_position('bottom')
-        clips.append(text_clip)
-
-    # Combine all clips
     video = concatenate_videoclips(clips, method="compose")
-
-    # Load audio and set it to the video
     audio = AudioFileClip(audio_path)
-    video = video.set_audio(audio)
+    return video.set_audio(audio)
 
-    return video
+def add_background_effects(video, background_path):
+    background = ImageClip(background_path).set_duration(video.duration)
+    return CompositeVideoClip([background, video])
 
 # Streamlit UI
 st.title("Enhanced PDF to Video with Speech")
 
-# File upload
+# File uploads
 pdf_file = st.file_uploader("Upload a PDF file", type="pdf")
 thumbnails = st.file_uploader("Upload thumbnail images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 background_music = st.file_uploader("Upload background music (optional)", type=["mp3", "wav"])
+background_image = st.file_uploader("Upload a background image (optional)", type=["png", "jpg", "jpeg"])
+
+# New feature: Custom Text Input
+text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)")
 
 if pdf_file and thumbnails:
     if st.button("Generate Video"):
@@ -71,8 +70,7 @@ if pdf_file and thumbnails:
         temp_dir = "temp"
         os.makedirs(temp_dir, exist_ok=True)
         thumbnail_paths = []
-        text_list = []
-        durations = []
+        durations = [5] * len(thumbnails)  # Default duration for each thumbnail
 
         for thumbnail in thumbnails:
             thumbnail_path = os.path.join(temp_dir, thumbnail.name)
@@ -80,12 +78,15 @@ if pdf_file and thumbnails:
                 f.write(thumbnail.getbuffer())
             thumbnail_paths.append(thumbnail_path)
 
-            # Split the text into chunks for overlays
-            text_list.append(pdf_text)  # You can customize this to split text more creatively
-            durations.append(5)  # Default duration for each thumbnail, can be customized by user input
+        # Create video with transitions
+        video = create_video_with_transitions(thumbnail_paths, audio_path, durations)
 
-        # Create video
-        video = create_video(thumbnail_paths, audio_path, text_list, durations)
+        # Add background effects if provided
+        if background_image:
+            bg_path = os.path.join(temp_dir, "background_image.jpg")
+            with open(bg_path, "wb") as f:
+                f.write(background_image.getbuffer())
+            video = add_background_effects(video, bg_path)
 
         # Add background music if provided
         if background_music:
@@ -108,5 +109,7 @@ if pdf_file and thumbnails:
             os.remove(path)
         if background_music:
             os.remove(bg_music_path)
+        if background_image:
+            os.remove(bg_path)
 else:
     st.warning("Please upload a PDF and thumbnail images to proceed.")
