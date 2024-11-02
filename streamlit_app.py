@@ -2,7 +2,6 @@ import streamlit as st
 from moviepy.editor import *
 import fitz  # PyMuPDF
 import os
-from io import BytesIO
 
 def pdf_to_text(pdf_file):
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
@@ -15,15 +14,14 @@ def create_video(pdf_text, thumbnails):
     clips = []
     for thumbnail in thumbnails:
         # Read the image from the uploaded file
-        image = ImageClip(thumbnail)
-        img_clip = image.set_duration(2)  # 2 seconds for each thumbnail
-        clips.append(img_clip)
+        image = ImageClip(thumbnail).set_duration(2)  # 2 seconds for each thumbnail
+        clips.append(image)
 
     # Combine all clips
     video = concatenate_videoclips(clips, method="compose")
 
-    # Create a text clip
-    text_clip = TextClip(pdf_text, fontsize=24, color='white', size=video.size)
+    # Create a text clip without ImageMagick
+    text_clip = TextClip(pdf_text, fontsize=24, color='white', bg_color='black', size=video.size)
     text_clip = text_clip.set_duration(video.duration).set_position('center')
 
     # Overlay text on video
