@@ -63,31 +63,29 @@ def get_blue_shade():
 
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
-st.title("🎬 **Epic YouTube Video Creator** 🌊")
+st.title("🎬 YouTube Video Creator 🌊")
 st.markdown("<h2 style='color: #003366; text-align: center;'>Create Stunning Videos Effortlessly!</h2>", unsafe_allow_html=True)
 
 # Set dynamic blue background color
 background_color = get_blue_shade()
 st.markdown(f"<style>body {{ background-color: {background_color}; }}</style>", unsafe_allow_html=True)
 
-# Sidebar styling
-st.sidebar.header("✨ Upload Your Content")
-st.sidebar.markdown("<style>.sidebar .sidebar-content { background-color: #B3E5FC; padding: 15px; border-radius: 10px; }</style>", unsafe_allow_html=True)
+# Main content
+st.header("Upload Your Content")
+pdf_file = st.file_uploader("Upload your PDF 📄", type="pdf")
+thumbnails = st.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+background_music = st.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
+background_image = st.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
 
-pdf_file = st.sidebar.file_uploader("Upload your PDF 📄", type="pdf")
-thumbnails = st.sidebar.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-background_music = st.sidebar.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
-background_image = st.sidebar.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
-
-st.sidebar.header("📝 Customize Your Video")
-text_overlays = st.sidebar.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
+st.header("Customize Your Video")
+text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
 
 # Video speed control
-playback_speed = st.sidebar.slider("Select video playback speed:", 0.5, 2.0, 1.0)
+playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
 
 # Generate Video Button
 if pdf_file and thumbnails:
-    if st.sidebar.button("🎬 **Generate Video!** 🎉"):
+    if st.button("Generate Video!"):
         try:
             # Read PDF text
             pdf_text = pdf_to_text(pdf_file)
@@ -99,7 +97,7 @@ if pdf_file and thumbnails:
             # Check audio duration
             audio_duration = audio_clip.duration
             if audio_duration == 0:
-                st.error("🚨 The generated audio file is empty. Please check the input text.")
+                st.error("The generated audio file is empty. Please check the input text.")
                 st.stop()
 
             # Save thumbnails temporarily
@@ -143,11 +141,11 @@ if pdf_file and thumbnails:
             video_path = "output_video.mp4"
             video.write_videofile(video_path, fps=24)
 
-            st.success("🎉 Video generated successfully! 🎬")
+            st.success("Video generated successfully!")
             st.video(video_path)
 
         except Exception as e:
-            st.error(f"🚨 An error occurred while generating the video: {e}")
+            st.error(f"An error occurred while generating the video: {e}")
 
         finally:
             # Cleanup
@@ -162,4 +160,4 @@ if pdf_file and thumbnails:
                 os.remove(bg_path)
 
 else:
-    st.warning("⚠️ Please upload a PDF and thumbnail images to proceed.")
+    st.warning("Please upload a PDF and thumbnail images to proceed.")
