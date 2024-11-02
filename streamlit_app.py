@@ -98,6 +98,9 @@ playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
 
 # Initialize paths
 audio_path = None
+watermark_path = None
+bg_path = None
+bg_music_path = None
 temp_dir = "temp"
 thumbnail_paths = []
 effect_paths = []
@@ -186,11 +189,11 @@ if pdf_file and thumbnails:
             for path in thumbnail_paths:
                 if os.path.exists(path):
                     os.remove(path)
-            if watermark_image and os.path.exists(watermark_path):
+            if watermark_path and os.path.exists(watermark_path):
                 os.remove(watermark_path)
-            if background_music and os.path.exists(bg_music_path):
+            if bg_music_path and os.path.exists(bg_music_path):
                 os.remove(bg_music_path)
-            if background_image and os.path.exists(bg_path):
+            if bg_path and os.path.exists(bg_path):
                 os.remove(bg_path)
             for effect in effect_paths:
                 if os.path.exists(effect):
