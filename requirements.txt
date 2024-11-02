@@ -1,5 +1,6 @@
-streamlit 
-moviepy 
+streamlit
+moviepy
 PyMuPDF
 gtts
-pillow
+Pillow
+numpy
