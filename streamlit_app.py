@@ -36,6 +36,10 @@ st.title("PDF to Video Generator")
 pdf_file = st.file_uploader("Upload a PDF file", type="pdf")
 thumbnails = st.file_uploader("Upload thumbnail images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
+# Ensure temp directory exists
+temp_dir = "temp"
+os.makedirs(temp_dir, exist_ok=True)
+
 if pdf_file and thumbnails:
     if st.button("Generate Video"):
         # Read PDF text
@@ -44,7 +48,7 @@ if pdf_file and thumbnails:
         # Save thumbnails temporarily
         thumbnail_paths = []
         for thumbnail in thumbnails:
-            thumbnail_path = os.path.join("temp", thumbnail.name)
+            thumbnail_path = os.path.join(temp_dir, thumbnail.name)
             with open(thumbnail_path, "wb") as f:
                 f.write(thumbnail.getbuffer())
             thumbnail_paths.append(thumbnail_path)
