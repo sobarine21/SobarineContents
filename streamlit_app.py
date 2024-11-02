@@ -12,13 +12,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Dynamic background color function
 def get_random_color():
-    colors = ['#FFB6C1', '#ADD8E6', '#90EE90', '#FFD700', '#FF69B4', '#FF6347', '#8A2BE2']
+    colors = ['#FFB6C1', '#ADD8E6', '#90EE90', '#FFD700', '#FF69B4', '#FF6347', '#8A2BE2', '#FF4500', '#00CED1']
     return random.choice(colors)
 
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 **Epic YouTube Video Creator** 🌈")
-st.markdown("<h2 style='color: #ff4500; text-align: center;'>Create Stunning Videos in Seconds!</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #2e2e2e; text-align: center;'>Create Stunning Videos in Seconds!</h2>", unsafe_allow_html=True)
 
 # Set dynamic background color
 background_color = get_random_color()
