@@ -2,6 +2,8 @@ import streamlit as st
 from moviepy.editor import *
 import fitz  # PyMuPDF
 import os
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
 def pdf_to_text(pdf_file):
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
@@ -10,23 +12,33 @@ def pdf_to_text(pdf_file):
         text += page.get_text()
     return text
 
+def create_text_image(text, size=(640, 480), font_size=24):
+    # Create an image with white background
+    image = Image.new("RGB", size, (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+
+    # Use a default font
+    font = ImageFont.load_default()
+    draw.text((10, 10), text, fill="black", font=font)
+
+    # Convert to numpy array and then to ImageClip
+    return ImageClip(np.array(image)).set_duration(5)
+
 def create_video(pdf_text, thumbnails):
     clips = []
+    
     for thumbnail in thumbnails:
-        # Read the image from the uploaded file
         image = ImageClip(thumbnail).set_duration(2)  # 2 seconds for each thumbnail
         clips.append(image)
 
+    # Create a text image
+    text_image = create_text_image(pdf_text, size=(640, 480), font_size=24)
+    clips.append(text_image)
+
     # Combine all clips
     video = concatenate_videoclips(clips, method="compose")
-
-    # Create a text clip without ImageMagick
-    text_clip = TextClip(pdf_text, fontsize=24, color='white', bg_color='black', size=video.size)
-    text_clip = text_clip.set_duration(video.duration).set_position('center')
-
-    # Overlay text on video
-    final_video = CompositeVideoClip([video, text_clip])
-    return final_video
+    
+    return video
 
 # Streamlit UI
 st.title("PDF to Video Generator")
