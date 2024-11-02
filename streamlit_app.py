@@ -82,6 +82,13 @@ if pdf_file and thumbnails:
 
             # Create audio from the text
             audio_path = create_audio_from_text(pdf_text)
+            audio_clip = AudioFileClip(audio_path)
+
+            # Check audio duration
+            audio_duration = audio_clip.duration
+            if audio_duration == 0:
+                st.error("The generated audio file is empty. Please check the input text.")
+                return
 
             # Save thumbnails temporarily
             temp_dir = "temp"
@@ -97,6 +104,11 @@ if pdf_file and thumbnails:
 
             # Create video with transitions and persistent thumbnail
             video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
+
+            # Check if the total video duration matches the audio duration
+            total_video_duration = video.duration
+            if total_video_duration > audio_duration:
+                st.warning("The video is longer than the audio. It may cut off the audio at the end.")
 
             # Adjust playback speed
             video = video.fx(vfx.speedx, playback_speed)
