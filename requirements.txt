@@ -1,1 +1,3 @@
-pip install streamlit moviepy PyMuPDF
+streamlit 
+moviepy 
+PyMuPDF
