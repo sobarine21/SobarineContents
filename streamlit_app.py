@@ -1,5 +1,6 @@
 import streamlit as st
 from moviepy.editor import *
+from moviepy.video.fx.all import fadein, fadeout  # Import fadein and fadeout
 import fitz  # PyMuPDF
 from gtts import gTTS
 import os
