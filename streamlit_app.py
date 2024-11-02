@@ -1,6 +1,6 @@
 import streamlit as st
 from moviepy.editor import *
-from moviepy.video.fx.all import fadein, fadeout, slide_in, zoom_in
+from moviepy.video.fx.all import fadein, fadeout, zoom_in
 import fitz  # PyMuPDF
 from gtts import gTTS
 import os
@@ -28,11 +28,15 @@ def create_custom_text_image(text, size=(640, 480), font_size=24, color='black',
     draw.text(text_position, text, fill=color, font=font)
     return np.array(image)
 
+def slide_effect(clip, duration, start_pos=(-clip.w, 0)):
+    """Slide the clip in from the start position over the specified duration."""
+    return clip.set_position(lambda t: (start_pos[0] + t * (clip.w / duration), start_pos[1]))
+
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays, transition_effect):
     clips = []
     audio_clip = AudioFileClip(audio_path)
     total_duration = audio_clip.duration
-    
+
     if thumbnails:
         persistent_thumbnail = ImageClip(thumbnails[0]).set_duration(total_duration)
         clips.append(persistent_thumbnail)
@@ -44,7 +48,7 @@ def create_video_with_transitions(thumbnails, audio_path, durations, text_overla
         if transition_effect == 'fade':
             image = fadein(image, 1).fadeout(1)
         elif transition_effect == 'slide':
-            image = slide_in(image, 1)
+            image = slide_effect(image, duration)
         elif transition_effect == 'zoom':
             image = zoom_in(image, 1)
 
