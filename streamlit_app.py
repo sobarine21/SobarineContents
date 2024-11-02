@@ -5,7 +5,6 @@ import os
 from io import BytesIO
 
 def pdf_to_text(pdf_file):
-    # Use BytesIO to read the PDF file
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
     for page in doc:
@@ -15,16 +14,18 @@ def pdf_to_text(pdf_file):
 def create_video(pdf_text, thumbnails):
     clips = []
     for thumbnail in thumbnails:
-        img_clip = ImageClip(thumbnail).set_duration(2)  # 2 seconds for each thumbnail
+        # Read the image from the uploaded file
+        image = ImageClip(thumbnail)
+        img_clip = image.set_duration(2)  # 2 seconds for each thumbnail
         clips.append(img_clip)
 
     # Combine all clips
     video = concatenate_videoclips(clips, method="compose")
 
-    # Add the text as a clip (You can customize the positioning and styling)
+    # Create a text clip
     text_clip = TextClip(pdf_text, fontsize=24, color='white', size=video.size)
     text_clip = text_clip.set_duration(video.duration).set_position('center')
-    
+
     # Overlay text on video
     final_video = CompositeVideoClip([video, text_clip])
     return final_video
