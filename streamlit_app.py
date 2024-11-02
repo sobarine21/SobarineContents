@@ -9,19 +9,52 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Function Definitions (remains the same)
 
+# Custom CSS for styling
+st.markdown("""
+    <style>
+    body {
+        background-color: #f0f8ff;
+        font-family: 'Helvetica Neue', sans-serif;
+    }
+    .title {
+        color: #ff4500;
+        text-align: center;
+    }
+    .sidebar .sidebar-content {
+        background-color: #ffebcd;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    .stButton > button {
+        background-color: #ff6347;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+    }
+    .stButton > button:hover {
+        background-color: #ff4500;
+    }
+    .warning {
+        color: #ff4500;
+        font-weight: bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Streamlit UI
-st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
-st.title("🎥 Welcome to the Wildest Video Creator! 🌈")
+st.title("🎬 **Epic YouTube Video Creator** 🌈")
+st.markdown("<h2 class='title'>Create Stunning Videos in Seconds!</h2>", unsafe_allow_html=True)
 
-# Sidebars for Uploads
-st.sidebar.header("Upload Your Content")
-pdf_file = st.sidebar.file_uploader("Upload content PDF", type="pdf")
-thumbnails = st.sidebar.file_uploader("Upload images", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-background_music = st.sidebar.file_uploader("Upload background music (optional)", type=["mp3", "wav"])
-background_image = st.sidebar.file_uploader("Upload a background image (optional)", type=["png", "jpg", "jpeg"])
+# Sidebar
+st.sidebar.header("✨ Upload Your Content")
+pdf_file = st.sidebar.file_uploader("Upload your PDF 📄", type="pdf")
+thumbnails = st.sidebar.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+background_music = st.sidebar.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
+background_image = st.sidebar.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
 
-# New feature: Custom Text Input for overlays
-st.sidebar.header("Customize Your Overlays")
+st.sidebar.header("📝 Customize Your Video")
 text_overlays = st.sidebar.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
 
 # Video speed control
@@ -29,7 +62,7 @@ playback_speed = st.sidebar.slider("Select video playback speed:", 0.5, 2.0, 1.0
 
 # Generate Video Button
 if pdf_file and thumbnails:
-    if st.sidebar.button("🎬 Generate Video! 🎉"):
+    if st.sidebar.button("🎬 **Generate Video!** 🎉"):
         try:
             # Read PDF text
             pdf_text = pdf_to_text(pdf_file)
@@ -41,7 +74,7 @@ if pdf_file and thumbnails:
             # Check audio duration
             audio_duration = audio_clip.duration
             if audio_duration == 0:
-                st.error("The generated audio file is empty. Please check the input text.")
+                st.error("🚨 The generated audio file is empty. Please check the input text.")
                 st.stop()
 
             # Save thumbnails temporarily
@@ -104,4 +137,4 @@ if pdf_file and thumbnails:
                 os.remove(bg_path)
 
 else:
-    st.warning("⚠️ Please upload a PDF and thumbnail images to proceed.")
+    st.warning("⚠️ **Please upload a PDF and thumbnail images to proceed.**", unsafe_allow_html=True)
