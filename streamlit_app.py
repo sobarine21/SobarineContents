@@ -1,4 +1,5 @@
 import streamlit as st
+import random
 from moviepy.editor import *
 from moviepy.video.fx.all import fadein, fadeout
 import fitz
@@ -9,43 +10,19 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Function Definitions (remains the same)
 
-# Custom CSS for styling
-st.markdown("""
-    <style>
-    body {
-        background-color: #f0f8ff;
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    .title {
-        color: #ff4500;
-        text-align: center;
-    }
-    .sidebar .sidebar-content {
-        background-color: #ffebcd;
-        border-radius: 10px;
-        padding: 20px;
-    }
-    .stButton > button {
-        background-color: #ff6347;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        padding: 10px 20px;
-        font-size: 16px;
-    }
-    .stButton > button:hover {
-        background-color: #ff4500;
-    }
-    .warning {
-        color: #ff4500;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# Dynamic background color function
+def get_random_color():
+    colors = ['#FFB6C1', '#ADD8E6', '#90EE90', '#FFD700', '#FF69B4', '#FF6347', '#8A2BE2']
+    return random.choice(colors)
 
 # Streamlit UI
+st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 **Epic YouTube Video Creator** 🌈")
-st.markdown("<h2 class='title'>Create Stunning Videos in Seconds!</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #ff4500; text-align: center;'>Create Stunning Videos in Seconds!</h2>", unsafe_allow_html=True)
+
+# Set dynamic background color
+background_color = get_random_color()
+st.markdown(f"<style>body {{ background-color: {background_color}; }}</style>", unsafe_allow_html=True)
 
 # Sidebar
 st.sidebar.header("✨ Upload Your Content")
@@ -137,4 +114,4 @@ if pdf_file and thumbnails:
                 os.remove(bg_path)
 
 else:
-    st.warning("⚠️ **Please upload a PDF and thumbnail images to proceed.**", unsafe_allow_html=True)
+    st.warning("⚠️ Please upload a PDF and thumbnail images to proceed.")
