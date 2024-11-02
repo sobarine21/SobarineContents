@@ -161,16 +161,8 @@ if pdf_file and thumbnails:
                     f.write(thumbnail.getbuffer())
                 thumbnail_paths.append(thumbnail_path)
 
-            # Generate variations for thumbnails
-            varied_thumbnails = []
-            for path in thumbnail_paths:
-                img_clip = ImageClip(path)
-                if apply_shapes:
-                    img_clip = overlay_random_shapes(img_clip)
-                varied_thumbnails.extend(generate_thumbnail_variations(img_clip))
-
             # Create video with transitions and effects
-            video_clips = random_transition_effect(varied_thumbnails)
+            video_clips = random_transition_effect([ImageClip(thumbnail).set_duration(durations[i]) for i, thumbnail in enumerate(thumbnail_paths)])
             video = create_video_with_transitions(video_clips, audio_path, durations, text_overlays)
 
             # Trim video if it exceeds audio duration
