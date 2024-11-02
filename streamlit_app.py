@@ -2,9 +2,11 @@ import streamlit as st
 from moviepy.editor import *
 import fitz  # PyMuPDF
 import os
+from io import BytesIO
 
 def pdf_to_text(pdf_file):
-    doc = fitz.open(pdf_file)
+    # Use BytesIO to read the PDF file
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
     for page in doc:
         text += page.get_text()
