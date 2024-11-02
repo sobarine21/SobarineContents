@@ -1,13 +1,15 @@
 import streamlit as st
 import random
 from moviepy.editor import *
-from moviepy.video.fx.all import fadein, fadeout
+from moviepy.video.fx.all import fadein, fadeout, speedx, colorx
 import fitz
 from gtts import gTTS
 import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import textwrap
 
+# Utility Functions
 def pdf_to_text(pdf_file):
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
@@ -25,17 +27,14 @@ def create_custom_text_image(text, size=(640, 480), font_size=24):
     image = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
-    draw.text((10, 10), text, fill="black", font=font)
+    wrapped_text = textwrap.fill(text, width=30)
+    draw.text((10, 10), wrapped_text, fill="black", font=font)
     return np.array(image)
 
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays):
     clips = []
     audio_clip = AudioFileClip(audio_path)
     total_duration = audio_clip.duration
-
-    if thumbnails:
-        persistent_thumbnail = ImageClip(thumbnails[0]).set_duration(total_duration)
-        clips.append(persistent_thumbnail)
 
     for idx, thumbnail in enumerate(thumbnails):
         duration = durations[idx]
@@ -61,6 +60,32 @@ def get_blue_shade():
     shades_of_blue = ['#E0F7FA', '#B2EBF2', '#80DEEA', '#4DD0E1', '#26C6DA', '#00BCD4', '#00ACC1']
     return random.choice(shades_of_blue)
 
+# Additional features
+def add_noise_effect(video):
+    noise = video.fx(colorx, 1.2)
+    return CompositeVideoClip([video, noise.set_opacity(0.1)])
+
+def random_transition_effect(clips):
+    if random.choice([True, False]):
+        return [fadein(clip, 1) for clip in clips]
+    return clips
+
+def add_watermark(video, watermark_path):
+    watermark = ImageClip(watermark_path).set_duration(video.duration).set_position(("right", "bottom"))
+    return CompositeVideoClip([video, watermark.set_opacity(0.5)])
+
+def random_image_effect(image):
+    if random.choice([True, False]):
+        return image.fx(colorx, random.uniform(0.5, 1.5))
+    return image
+
+def generate_thumbnail_variations(thumbnail):
+    variations = []
+    for _ in range(5):
+        variation = thumbnail.fx(colorx, random.uniform(0.5, 1.5))
+        variations.append(variation)
+    return variations
+
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 YouTube Video Creator 🌊")
@@ -76,6 +101,7 @@ pdf_file = st.file_uploader("Upload your PDF 📄", type="pdf")
 thumbnails = st.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 background_music = st.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
 background_image = st.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
+watermark_image = st.file_uploader("Upload a watermark image (optional)", type=["png", "jpg", "jpeg"])
 
 st.header("Customize Your Video")
 text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
@@ -112,15 +138,21 @@ if pdf_file and thumbnails:
                     f.write(thumbnail.getbuffer())
                 thumbnail_paths.append(thumbnail_path)
 
-            # Create video with transitions
-            video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
+            # Generate variations for thumbnails
+            varied_thumbnails = []
+            for path in thumbnail_paths:
+                varied_thumbnails.extend(generate_thumbnail_variations(ImageClip(path)))
+
+            # Create video with transitions and effects
+            video_clips = random_transition_effect(varied_thumbnails)
+            video = create_video_with_transitions(video_clips, audio_path, durations, text_overlays)
 
             # Trim video if it exceeds audio duration
             if video.duration > audio_duration:
                 video = video.subclip(0, audio_duration)
 
             # Adjust playback speed
-            video = video.fx(vfx.speedx, playback_speed)
+            video = video.fx(speedx, playback_speed)
 
             # Add background effects if provided
             if background_image:
@@ -128,6 +160,16 @@ if pdf_file and thumbnails:
                 with open(bg_path, "wb") as f:
                     f.write(background_image.getbuffer())
                 video = add_background_effects(video, bg_path)
+
+            # Add noise effect randomly
+            video = add_noise_effect(video)
+
+            # Add watermark if provided
+            if watermark_image:
+                watermark_path = os.path.join(temp_dir, "watermark.png")
+                with open(watermark_path, "wb") as f:
+                    f.write(watermark_image.getbuffer())
+                video = add_watermark(video, watermark_path)
 
             # Add background music if provided
             if background_music:
@@ -154,6 +196,8 @@ if pdf_file and thumbnails:
             for path in thumbnail_paths:
                 if os.path.exists(path):
                     os.remove(path)
+            if watermark_image and os.path.exists(watermark_path):
+                os.remove(watermark_path)
             if background_music and os.path.exists(bg_music_path):
                 os.remove(bg_music_path)
             if background_image and os.path.exists(bg_path):
