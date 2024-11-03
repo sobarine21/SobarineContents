@@ -5,9 +5,9 @@ from moviepy.video.fx.all import fadein, fadeout, speedx
 import fitz
 from gtts import gTTS
 import os
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import textwrap
+import emoji
 
 # Utility Functions
 def pdf_to_text(pdf_file):
@@ -74,6 +74,26 @@ def overlay_random_shapes(image):
             draw.rectangle((x1, y1, x2, y2), fill=color, outline=color)
     return image
 
+def text_to_emoji(text):
+    return emoji.emojize(text, use_aliases=True)
+
+def apply_filter(image, filter_type):
+    if filter_type == "Sepia":
+        sepia_image = image.convert("RGB")
+        width, height = sepia_image.size
+        pixels = sepia_image.load()
+        for py in range(height):
+            for px in range(width):
+                r, g, b = sepia_image.getpixel((px, py))
+                tr = int(0.393 * r + 0.769 * g + 0.189 * b)
+                tg = int(0.349 * r + 0.686 * g + 0.168 * b)
+                tb = int(0.272 * r + 0.534 * g + 0.131 * b)
+                pixels[px, py] = (min(tr, 255), min(tg, 255), min(tb, 255))
+        return sepia_image
+    elif filter_type == "Blur":
+        return image.filter(ImageFilter.GaussianBlur(radius=5))
+    return image
+
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 YouTube Video Creator 🌊")
@@ -88,10 +108,16 @@ background_image = st.file_uploader("Upload a background image 🖼️ (optional
 watermark_image = st.file_uploader("Upload a watermark image (optional)", type=["png", "jpg", "jpeg"])
 sound_effects = st.file_uploader("Upload sound effects (optional)", type=["mp3", "wav"], accept_multiple_files=True)
 
+# Text input with character limit
+text_input = st.text_area("Paste your content (max 2000 characters)", max_chars=2000)
+st.write(f"Characters used: {len(text_input)}")
+
+# Video customization options
 st.header("Customize Your Video")
 text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)").splitlines()
 apply_shapes = st.checkbox("Overlay random shapes on images")
 apply_glitch = st.checkbox("Apply glitch effect on video")
+filter_option = st.selectbox("Select an image filter for thumbnails:", ["None", "Sepia", "Blur"])
 
 # Video speed control
 playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
@@ -100,17 +126,22 @@ playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
 audio_path = None
 watermark_path = None
 bg_path = None
-bg_music_path = None
 temp_dir = "temp"
 thumbnail_paths = []
 effect_paths = []
 
 # Generate Video Button
-if pdf_file and thumbnails:
+if (pdf_file or text_input) and thumbnails:
     if st.button("Generate Video!"):
         try:
-            # Read PDF text
-            pdf_text = pdf_to_text(pdf_file)
+            # Use text from the PDF if available, otherwise use pasted content
+            if pdf_file:
+                pdf_text = pdf_to_text(pdf_file)
+            else:
+                pdf_text = text_input
+
+            # Convert text to emojis
+            pdf_text = text_to_emoji(pdf_text)
 
             # Create audio from the text
             audio_path = create_audio_from_text(pdf_text)
@@ -138,6 +169,12 @@ if pdf_file and thumbnails:
                     thumbnail_paths.append(img_with_shapes_path)
                 else:
                     thumbnail_paths.append(thumbnail_path)
+
+                # Apply selected filter if any
+                if filter_option != "None":
+                    img = Image.open(thumbnail_path)
+                    img = apply_filter(img, filter_option)
+                    img.save(thumbnail_path)  # Overwrite with filtered image
 
             # Create video with transitions
             video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
@@ -170,7 +207,6 @@ if pdf_file and thumbnails:
                     with open(effect_path, "wb") as f:
                         f.write(effect.getbuffer())
                     effect_paths.append(effect_path)
-                # You may want to implement a method to add sound effects to the video
 
             # Save video
             video_path = "output_video.mp4"
@@ -191,8 +227,6 @@ if pdf_file and thumbnails:
                     os.remove(path)
             if watermark_path and os.path.exists(watermark_path):
                 os.remove(watermark_path)
-            if bg_music_path and os.path.exists(bg_music_path):
-                os.remove(bg_music_path)
             if bg_path and os.path.exists(bg_path):
                 os.remove(bg_path)
             for effect in effect_paths:
@@ -200,4 +234,4 @@ if pdf_file and thumbnails:
                     os.remove(effect)
 
 else:
-    st.warning("Please upload a PDF and thumbnail images to proceed.")
+    st.warning("Please upload a PDF or paste content, and add thumbnail images to proceed.")
