@@ -1,16 +1,17 @@
 import streamlit as st
 import random
+import os
 from moviepy.editor import *
 from moviepy.video.fx.all import fadein, fadeout, speedx
-import fitz
+import fitz  # PyMuPDF
 from gtts import gTTS
-import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import textwrap
 import emoji
 
 # Utility Functions
 def pdf_to_text(pdf_file):
+    """Extract text from a PDF file."""
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
     for page in doc:
@@ -18,12 +19,14 @@ def pdf_to_text(pdf_file):
     return text
 
 def create_audio_from_text(text, lang='en'):
+    """Create audio from text using gTTS."""
     tts = gTTS(text=text, lang=lang, slow=False)
     audio_path = "output_audio.mp3"
     tts.save(audio_path)
     return audio_path
 
 def create_custom_text_image(text, size=(640, 480), font_size=24):
+    """Create an image with custom text."""
     image = Image.new("RGB", size, (255, 255, 255))
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default()
@@ -32,6 +35,7 @@ def create_custom_text_image(text, size=(640, 480), font_size=24):
     return image
 
 def create_video_with_transitions(thumbnails, audio_path, durations, text_overlays):
+    """Create a video with transitions and audio."""
     clips = []
     audio_clip = AudioFileClip(audio_path)
 
@@ -52,13 +56,16 @@ def create_video_with_transitions(thumbnails, audio_path, durations, text_overla
     return video
 
 def add_background_effects(video, background_path):
+    """Add a background image to the video."""
     background = ImageClip(background_path).set_duration(video.duration)
     return CompositeVideoClip([background, video])
 
 def random_color():
+    """Generate a random RGB color."""
     return tuple(random.randint(0, 255) for _ in range(3))
 
 def overlay_random_shapes(image):
+    """Overlay random shapes on an image."""
     draw = ImageDraw.Draw(image)
     for _ in range(random.randint(3, 10)):
         shape_type = random.choice(['circle', 'rectangle'])
@@ -75,9 +82,11 @@ def overlay_random_shapes(image):
     return image
 
 def text_to_emoji(text):
+    """Convert text to emojis."""
     return emoji.emojize(text, use_aliases=True)
 
 def apply_filter(image, filter_type):
+    """Apply a filter to an image."""
     if filter_type == "Sepia":
         sepia_image = image.convert("RGB")
         width, height = sepia_image.size
@@ -164,17 +173,15 @@ if (pdf_file or text_input) and thumbnails:
                 if apply_shapes:
                     img = Image.open(thumbnail_path)
                     img_with_shapes = overlay_random_shapes(img)
-                    img_with_shapes_path = os.path.join(temp_dir, "shaped_" + thumbnail.name)
-                    img_with_shapes.save(img_with_shapes_path)
-                    thumbnail_paths.append(img_with_shapes_path)
-                else:
-                    thumbnail_paths.append(thumbnail_path)
+                    img_with_shapes.save(thumbnail_path)  # Overwrite with shapes
 
                 # Apply selected filter if any
                 if filter_option != "None":
                     img = Image.open(thumbnail_path)
                     img = apply_filter(img, filter_option)
                     img.save(thumbnail_path)  # Overwrite with filtered image
+
+                thumbnail_paths.append(thumbnail_path)
 
             # Create video with transitions
             video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
@@ -207,6 +214,8 @@ if (pdf_file or text_input) and thumbnails:
                     with open(effect_path, "wb") as f:
                         f.write(effect.getbuffer())
                     effect_paths.append(effect_path)
+                # Add sound effects to the video (example implementation)
+                # video = add_sound_effects(video, effect_paths)
 
             # Save video
             video_path = "output_video.mp4"
