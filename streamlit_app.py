@@ -117,6 +117,28 @@ def share_video_on_socials(video_path):
     st.write(f"[Twitter](https://twitter.com/intent/tweet?url={video_path})")
     st.write(f"[Facebook](https://www.facebook.com/sharer/sharer.php?u={video_path})")
 
+def overlay_random_shapes(image):
+    """Overlay random shapes on the given image."""
+    draw = ImageDraw.Draw(image)
+    width, height = image.size
+
+    # Define number of shapes to overlay
+    num_shapes = random.randint(1, 5)
+    
+    for _ in range(num_shapes):
+        shape_type = random.choice(['circle', 'rectangle'])
+        x1 = random.randint(0, width)
+        y1 = random.randint(0, height)
+        x2 = random.randint(x1, width)
+        y2 = random.randint(y1, height)
+
+        if shape_type == 'circle':
+            draw.ellipse([x1, y1, x2, y2], fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 128))
+        elif shape_type == 'rectangle':
+            draw.rectangle([x1, y1, x2, y2], fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 128))
+
+    return image
+
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 YouTube Video Creator 🌊")
@@ -160,9 +182,6 @@ if dynamic_speed:
         end_time = st.number_input(f"End time for segment {i+1} (seconds)", value=5)
         speed = st.number_input(f"Speed for segment {i+1} (e.g., 1.0 for normal, 2.0 for double speed)", value=1.0)
         speed_segments.append((start_time, end_time, speed))
-
-# Video speed control
-playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
 
 # Initialize paths
 audio_path = None
