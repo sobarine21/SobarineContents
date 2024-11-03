@@ -140,8 +140,8 @@ def overlay_random_shapes(image):
     return image
 
 # Streamlit UI
-st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
-st.title("🎬 YouTube Video Creator 🌊")
+st.set_page_config(page_title="🎬 Create Youtube Videos effortlesly", layout="wide")
+st.title("🎬 Sobarine Content Technologies 🌊")
 st.markdown("<h2 style='color: #003366; text-align: center;'>Create Stunning Videos Effortlessly!</h2>", unsafe_allow_html=True)
 
 # Main content
