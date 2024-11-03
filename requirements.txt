@@ -4,3 +4,4 @@ PyMuPDF
 gtts
 Pillow
 numpy
+emoji
