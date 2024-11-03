@@ -9,14 +9,19 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import textwrap
 import emoji
 
+# Constants
+CHARACTER_LIMIT = 2000
+
 # Utility Functions
 def pdf_to_text(pdf_file):
-    """Extract text from a PDF file."""
+    """Extract text from a PDF file with a character limit."""
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
     for page in doc:
         text += page.get_text()
-    return text
+        if len(text) >= CHARACTER_LIMIT:
+            break
+    return text[:CHARACTER_LIMIT]
 
 def create_audio_from_text(text, lang='en'):
     """Create audio from text using gTTS."""
@@ -60,30 +65,29 @@ def add_background_effects(video, background_path):
     background = ImageClip(background_path).set_duration(video.duration)
     return CompositeVideoClip([background, video])
 
-def random_color():
-    """Generate a random RGB color."""
-    return tuple(random.randint(0, 255) for _ in range(3))
+def create_image_collage(images, size=(1280, 720)):
+    """Create a collage from a list of images."""
+    collage = Image.new("RGB", size, (255, 255, 255))
+    for idx, img in enumerate(images):
+        image = Image.open(img).resize((200, 200))
+        x_offset = (idx % 5) * 200
+        y_offset = (idx // 5) * 200
+        collage.paste(image, (x_offset, y_offset))
+    return collage
 
-def overlay_random_shapes(image):
-    """Overlay random shapes on an image."""
-    draw = ImageDraw.Draw(image)
-    for _ in range(random.randint(3, 10)):
-        shape_type = random.choice(['circle', 'rectangle'])
-        color = random_color()
-        if shape_type == 'circle':
-            radius = random.randint(10, 50)
-            x = random.randint(radius, image.size[0] - radius)
-            y = random.randint(radius, image.size[1] - radius)
-            draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=color, outline=color)
-        else:
-            x1, y1 = random.randint(0, image.size[0]), random.randint(0, image.size[1])
-            x2, y2 = random.randint(x1, image.size[0]), random.randint(y1, image.size[1])
-            draw.rectangle((x1, y1, x2, y2), fill=color, outline=color)
-    return image
+def mix_audio_tracks(audio_paths):
+    """Mix multiple audio tracks."""
+    audio_clips = [AudioFileClip(path) for path in audio_paths]
+    final_audio = concatenate_audioclips(audio_clips)
+    return final_audio
 
-def text_to_emoji(text):
-    """Convert text to emojis."""
-    return emoji.emojize(text, use_aliases=True)
+def add_dynamic_speed(video, speed_segments):
+    """Apply different speeds to different segments."""
+    clips = []
+    for start, end, speed in speed_segments:
+        subclip = video.subclip(start, end).fx(speedx, speed)
+        clips.append(subclip)
+    return concatenate_videoclips(clips)
 
 def apply_filter(image, filter_type):
     """Apply a filter to an image."""
@@ -103,6 +107,16 @@ def apply_filter(image, filter_type):
         return image.filter(ImageFilter.GaussianBlur(radius=5))
     return image
 
+def convert_text_to_emojis(text):
+    """Convert text to emojis."""
+    return emoji.emojize(text, use_aliases=True)
+
+def share_video_on_socials(video_path):
+    """Provide links to share the video."""
+    st.write("Share your video:")
+    st.write(f"[Twitter](https://twitter.com/intent/tweet?url={video_path})")
+    st.write(f"[Facebook](https://www.facebook.com/sharer/sharer.php?u={video_path})")
+
 # Streamlit UI
 st.set_page_config(page_title="🎬 YouTube Video Creator", layout="wide")
 st.title("🎬 YouTube Video Creator 🌊")
@@ -110,15 +124,15 @@ st.markdown("<h2 style='color: #003366; text-align: center;'>Create Stunning Vid
 
 # Main content
 st.header("Upload Your Content")
-pdf_file = st.file_uploader("Upload your PDF 📄", type="pdf")
+pdf_file = st.file_uploader("Upload your PDF 📄 (max 2000 characters)", type="pdf")
 thumbnails = st.file_uploader("Upload images 🖼️", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-background_music = st.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"])
+background_music = st.file_uploader("Upload background music 🎶 (optional)", type=["mp3", "wav"], accept_multiple_files=True)
 background_image = st.file_uploader("Upload a background image 🖼️ (optional)", type=["png", "jpg", "jpeg"])
 watermark_image = st.file_uploader("Upload a watermark image (optional)", type=["png", "jpg", "jpeg"])
 sound_effects = st.file_uploader("Upload sound effects (optional)", type=["mp3", "wav"], accept_multiple_files=True)
 
 # Text input with character limit
-text_input = st.text_area("Paste your content (max 2000 characters)", max_chars=2000)
+text_input = st.text_area("Paste your content (max 2000 characters)", max_chars=CHARACTER_LIMIT)
 st.write(f"Characters used: {len(text_input)}")
 
 # Video customization options
@@ -127,6 +141,25 @@ text_overlays = st.text_area("Enter custom text for overlays (one per thumbnail)
 apply_shapes = st.checkbox("Overlay random shapes on images")
 apply_glitch = st.checkbox("Apply glitch effect on video")
 filter_option = st.selectbox("Select an image filter for thumbnails:", ["None", "Sepia", "Blur"])
+language_option = st.selectbox("Select TTS language:", ['en', 'es', 'fr', 'de', 'it'])
+
+# Image collage option
+if st.checkbox("Create an image collage"):
+    collage = create_image_collage(thumbnails)
+    collage_path = "collage.png"
+    collage.save(collage_path)
+    st.image(collage_path, caption='Generated Collage', use_column_width=True)
+
+# Dynamic speed control
+dynamic_speed = st.checkbox("Add dynamic speed to video segments")
+speed_segments = []
+if dynamic_speed:
+    segment_count = st.number_input("How many speed segments?", min_value=1, max_value=5, value=1)
+    for i in range(segment_count):
+        start_time = st.number_input(f"Start time for segment {i+1} (seconds)", value=0)
+        end_time = st.number_input(f"End time for segment {i+1} (seconds)", value=5)
+        speed = st.number_input(f"Speed for segment {i+1} (e.g., 1.0 for normal, 2.0 for double speed)", value=1.0)
+        speed_segments.append((start_time, end_time, speed))
 
 # Video speed control
 playback_speed = st.slider("Select video playback speed:", 0.5, 2.0, 1.0)
@@ -143,17 +176,15 @@ effect_paths = []
 if (pdf_file or text_input) and thumbnails:
     if st.button("Generate Video!"):
         try:
-            # Use text from the PDF if available, otherwise use pasted content
-            if pdf_file:
-                pdf_text = pdf_to_text(pdf_file)
-            else:
-                pdf_text = text_input
-
-            # Convert text to emojis
-            pdf_text = text_to_emoji(pdf_text)
+            # Read PDF text or use input text
+            pdf_text = pdf_to_text(pdf_file) if pdf_file else ""
+            input_text = pdf_text if pdf_text else text_input
+            if not input_text:
+                st.error("Please provide content to generate audio.")
+                st.stop()
 
             # Create audio from the text
-            audio_path = create_audio_from_text(pdf_text)
+            audio_path = create_audio_from_text(input_text, lang=language_option)
             audio_clip = AudioFileClip(audio_path)
 
             # Check audio duration
@@ -170,18 +201,19 @@ if (pdf_file or text_input) and thumbnails:
                 with open(thumbnail_path, "wb") as f:
                     f.write(thumbnail.getbuffer())
 
-                if apply_shapes:
-                    img = Image.open(thumbnail_path)
-                    img_with_shapes = overlay_random_shapes(img)
-                    img_with_shapes.save(thumbnail_path)  # Overwrite with shapes
-
-                # Apply selected filter if any
+                # Apply selected filter
                 if filter_option != "None":
                     img = Image.open(thumbnail_path)
                     img = apply_filter(img, filter_option)
-                    img.save(thumbnail_path)  # Overwrite with filtered image
+                    img.save(thumbnail_path)
 
-                thumbnail_paths.append(thumbnail_path)
+                if apply_shapes:
+                    img_with_shapes = overlay_random_shapes(img)
+                    img_with_shapes_path = os.path.join(temp_dir, "shaped_" + thumbnail.name)
+                    img_with_shapes.save(img_with_shapes_path)
+                    thumbnail_paths.append(img_with_shapes_path)
+                else:
+                    thumbnail_paths.append(thumbnail_path)
 
             # Create video with transitions
             video = create_video_with_transitions(thumbnail_paths, audio_path, durations, text_overlays)
@@ -190,8 +222,9 @@ if (pdf_file or text_input) and thumbnails:
             if video.duration > audio_duration:
                 video = video.subclip(0, audio_duration)
 
-            # Adjust playback speed
-            video = video.fx(speedx, playback_speed)
+            # Adjust dynamic speed if selected
+            if dynamic_speed:
+                video = add_dynamic_speed(video, speed_segments)
 
             # Add background effects if provided
             if background_image:
@@ -214,8 +247,9 @@ if (pdf_file or text_input) and thumbnails:
                     with open(effect_path, "wb") as f:
                         f.write(effect.getbuffer())
                     effect_paths.append(effect_path)
-                # Add sound effects to the video (example implementation)
-                # video = add_sound_effects(video, effect_paths)
+                # Mix sound effects
+                mixed_audio = mix_audio_tracks(effect_paths)
+                video = video.set_audio(mixed_audio)
 
             # Save video
             video_path = "output_video.mp4"
@@ -223,6 +257,7 @@ if (pdf_file or text_input) and thumbnails:
 
             st.success("Video generated successfully!")
             st.video(video_path)
+            share_video_on_socials(video_path)
 
         except Exception as e:
             st.error(f"An error occurred while generating the video: {e}")
