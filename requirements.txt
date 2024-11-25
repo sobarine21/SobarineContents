@@ -1,8 +1,7 @@
-streamlit
-moviepy.editor
-PyMuPDF
-gtts
-Pillow
-numpy
-emoji
-
+streamlit 
+moviepy
+PyPDF2 
+pyttsx3 
+pillow 
+numpy 
+imageio
