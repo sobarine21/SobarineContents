@@ -1,5 +1,5 @@
 streamlit
-moviepy
+moviepy.editor
 PyMuPDF
 gtts
 Pillow
