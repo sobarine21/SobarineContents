@@ -1,7 +1,3 @@
 streamlit 
-moviepy
-PyPDF2 
-pyttsx3 
-pillow 
-numpy 
-imageio
+composio 
+google.genai
