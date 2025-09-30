@@ -4,6 +4,8 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from composio import Composio
+import base64
+from email.mime.text import MIMEText
 
 # ------------------- Setup -------------------
 st.set_page_config(page_title="AI Email Agent", layout="centered")
@@ -25,15 +27,7 @@ if "connected_account_id" not in st.session_state:
 # ------------------- Gemini AI Function -------------------
 
 def generate_ai_response(user_prompt: str) -> str:
-    """Generate response using Gemini API (non-streaming fallback)"""
-
-    # Prepare contents
-    contents = [
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_prompt)]
-        )
-    ]
+    contents = [types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])]
 
     gen_config = types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(thinking_budget=0),
@@ -45,7 +39,6 @@ def generate_ai_response(user_prompt: str) -> str:
         ],
     )
 
-    # Try non-streaming first — simpler to debug
     try:
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
@@ -53,33 +46,9 @@ def generate_ai_response(user_prompt: str) -> str:
             config=gen_config,
         )
         return resp.text.strip()
-
-    except Exception as e1:
-        st.warning(f"Non-streaming failed: {e1}")
-        # Try fallback model
-        try:
-            resp = genai_client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=contents,
-                config=gen_config,
-            )
-            return resp.text.strip()
-        except Exception as e2:
-            st.error(f"Fallback non-streaming also failed: {e2}")
-            # As last resort, try streaming with fallback
-            try:
-                response_text = ""
-                for chunk in genai_client.models.generate_content_stream(
-                    model="gemini-1.5-flash",
-                    contents=contents,
-                    config=gen_config,
-                ):
-                    if chunk.text:
-                        response_text += chunk.text
-                return response_text.strip()
-            except Exception as e3:
-                st.error(f"Streaming fallback also failed: {e3}")
-                return "❌ Error: unable to generate response."
+    except Exception as e:
+        st.error(f"Gemini error: {e}")
+        return "❌ Error generating response."
 
 # ------------------- Composio Email Functions -------------------
 
@@ -94,15 +63,25 @@ def connect_composio_account(user_id: str):
     st.session_state.connected_account_id = connected_account.id
     st.success("✅ Account connected!")
 
+def create_message(to: str, subject: str, body: str) -> str:
+    """Create RFC822 base64-encoded email for Gmail API."""
+    message = MIMEText(body)
+    message["to"] = to
+    message["subject"] = subject
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    return raw_message
+
 def send_email_via_composio(to: str, subject: str, body: str):
     if not st.session_state.connected_account_id:
         st.error("No connected account. Please connect first.")
         return None
 
+    raw_message = create_message(to, subject, body)
+
     result = composio.actions.execute(
-        "gmail.send_email",
+        "gmail.users.messages.send",   # ✅ Correct Gmail action
         connected_account_id=st.session_state.connected_account_id,
-        input={"to": to, "subject": subject, "body": body},
+        input={"userId": "me", "message": {"raw": raw_message}},
     )
     return result
 
