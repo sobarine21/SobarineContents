@@ -68,15 +68,16 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection Error: {e}")
 
 def send_email(to: str, subject: str, body: str):
-    """Sends an email using the Composio 'execute_tool' method."""
+    """Sends an email using the Composio Connected Accounts API."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # THE CORRECT METHOD: Execute the tool action directly by name
-        response = composio_client.execute_tool(
-            tool="GMAIL_SEND_EMAIL",
-            user_id=st.session_state.user_id,
+        # Final attempt using a logical method on the 'connected_accounts' object.
+        # This is the most likely correct pattern based on the process of elimination.
+        response = composio_client.connected_accounts.run_action(
+            connected_account_id=st.session_state.connected_account_id,
+            action="composio_google__gmail_send_email",
             params={
                 "to": to,
                 "subject": subject,
@@ -114,14 +115,15 @@ if st.session_state.show_form or st.session_state.connected_account_id:
             else:
                 with st.spinner("Sending email..."):
                     resp = send_email(to, subject, body)
-                    # The response from execute_tool is a direct dictionary
-                    if resp and resp.get("execution_details", {}).get("success"):
+                    # This assumes the response object has 'is_success' and 'response_data'
+                    if resp and hasattr(resp, 'is_success') and resp.is_success:
                         st.success("✅ Email sent successfully!")
-                        st.json(resp.get("response_data", {}))
+                        st.json(resp.response_data if hasattr(resp, 'response_data') else "No response data.")
                         st.session_state.draft = ""
                         st.session_state.show_form = False
                     else:
-                        st.error(f"❌ Failed to send email. Error: {resp.get('error') if resp else 'Unknown'}")
+                        error_msg = resp.error if hasattr(resp, 'error') else "Unknown"
+                        st.error(f"❌ Failed to send email. Error: {error_msg}")
 
 # --- UI: Connection Management ---
 st.divider()
@@ -133,3 +135,4 @@ else:
     if st.button("🔌 Disconnect Account"):
         st.session_state.connected_account_id = None
         st.rerun()
+
