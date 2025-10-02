@@ -37,7 +37,9 @@ if "connected_account_id" in query_params and not st.session_state.connected_acc
 def generate_ai_response(prompt: str) -> str:
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
-        config = types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_budget=0))
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        )
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
@@ -65,7 +67,7 @@ def send_email(to: str, subject: str, body: str):
         st.error("Connect Gmail account first!")
         return None
     try:
-        result = composio_client.execute_action(
+        result = composio_client.call_action(
             action="composio_google__gmail_send_email",
             params={
                 "to": to,
