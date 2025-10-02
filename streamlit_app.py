@@ -71,22 +71,22 @@ def send_email_with_composio(to: str, subject: str, body: str):
         st.error("No user ID found.")
         return None
     try:
-        email_prompt = f"""Draft and send an email using Gmail API:
-To: {to}
-Subject: {subject}
-Body: {body}
-"""
-        contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
-        response = genai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
-            )
+        # Get Gmail tool
+        tools = composio_client.tools.get(
+            user_id=st.session_state.user_id,
+            tools=["GMAIL_SEND_EMAIL"]
         )
-        result = composio_client.provider.handle_tool_calls(
-            response=response,
-            user_id=st.session_state.user_id
+        # Create Gemini chat with tools
+        config = types.GenerateContentConfig(tools=tools)
+        chat = genai_client.chats.create(model="gemini-2.0-flash", config=config)
+
+        prompt = f"Send an email to {to} with subject '{subject}' and body '{body}'."
+        response = chat.send_message(prompt)
+
+        # ✅ Correct: use handle_response instead of handle_tool_calls
+        result = composio_client.provider.handle_response(
+            user_id=st.session_state.user_id,
+            response=response
         )
         return result
     except Exception as e:
