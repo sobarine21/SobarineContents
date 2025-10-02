@@ -73,18 +73,23 @@ def send_email(to: str, subject: str, body: str):
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # Get the Gmail tool instance using its string identifier
-        gmail_tool = composio_client.get_tool(name="gmail")
+        # CORRECT METHOD: Fetch the specific action for the user
+        tools = composio_client.tools.get(
+            user_id=st.session_state.user_id,
+            tools=["GMAIL_SEND_EMAIL"]
+        )
         
-        # Execute the send_email action
-        response = gmail_tool.actions.send_email.execute(
+        # The returned object is a dictionary with the action itself
+        send_email_action = tools["GMAIL_SEND_EMAIL"]
+        
+        # Execute the action
+        response = send_email_action.execute(
             request_data={
-                "recipient_email": to,
+                "to": to,
                 "subject": subject,
                 "body": body
             }
         )
-        
         return response
     except Exception as e:
         st.error(f"Error sending email: {e}")
@@ -92,7 +97,7 @@ def send_email(to: str, subject: str, body: str):
 
 # --- UI: AI Draft Generation ---
 with st.expander("💬 Draft an Email with AI", expanded=True):
-    user_prompt = st.text_area("Your prompt:", placeholder="e.g., Write a follow-up email to a potential client...")
+    user_prompt = st.text_area("Your prompt:", placeholder="e.g., Write a follow-up email...")
     if st.button("Generate Draft", key="generate"):
         if not user_prompt.strip():
             st.warning("Please enter a prompt for the AI.")
@@ -134,4 +139,3 @@ else:
     if st.button("🔌 Disconnect Account"):
         st.session_state.connected_account_id = None
         st.rerun()
-
