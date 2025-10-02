@@ -15,7 +15,8 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # Initialize clients
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio_client = Composio(api_key=COMPOSIO_API_KEY)  # no [GoogleProvider] here
+composio_client = Composio(api_key=COMPOSIO_API_KEY)  # No [GoogleProvider] here
+google_provider = GoogleProvider(composio_client)   # ✅ Correct: instantiate provider
 
 # Session state initialization
 if "connected_account_id" not in st.session_state:
@@ -28,7 +29,6 @@ if "show_form" not in st.session_state:
     st.session_state.show_form = False
 
 # ------------------- Gemini AI Function -------------------
-
 def generate_ai_response(prompt: str) -> str:
     contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
     config = types.GenerateContentConfig(
@@ -52,7 +52,6 @@ def generate_ai_response(prompt: str) -> str:
         return "⚠️ Could not generate AI response."
 
 # ------------------- Composio Email Functions -------------------
-
 def connect_composio_account(user_id: str):
     try:
         conn_req = composio_client.connected_accounts.link(
@@ -75,9 +74,9 @@ def send_email_with_composio(to: str, subject: str, body: str):
         return None
 
     try:
-        # Prompt for Gemini
+        # Prompt for Gemini to draft the email
         email_prompt = f"""
-        Use GoogleProvider Gmail API to send this email:
+        Draft an email using GoogleProvider Gmail API:
         To: {to}
         Subject: {subject}
         Body: {body}
@@ -99,8 +98,8 @@ def send_email_with_composio(to: str, subject: str, body: str):
             )
         )
 
-        # Correct way: use provider handle_tool_calls
-        result = composio_client.get_provider(GoogleProvider).handle_tool_calls(
+        # ✅ Use provider directly
+        result = google_provider.handle_tool_calls(
             response=response,
             user_id=st.session_state.user_id
         )
@@ -113,7 +112,6 @@ def send_email_with_composio(to: str, subject: str, body: str):
         return None
 
 # ------------------- Streamlit UI -------------------
-
 user_prompt = st.text_area("💬 Ask AI to draft your email:", placeholder="Write an email to a client...")
 
 if st.button("Generate Email Draft"):
