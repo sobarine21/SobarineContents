@@ -27,7 +27,7 @@ if "draft" not in st.session_state:
 if "show_form" not in st.session_state:
     st.session_state.show_form = False
 
-# ------------------- Gemini AI Function -------------------
+# ------------------- Gemini AI Function (Draft only) -------------------
 def generate_ai_response(prompt: str) -> str:
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
@@ -50,7 +50,7 @@ def generate_ai_response(prompt: str) -> str:
         st.error(f"Gemini API error: {e}")
         return "⚠️ Could not generate AI response."
 
-# ------------------- Composio Gmail Functions -------------------
+# ------------------- Composio Gmail Functions (Send only) -------------------
 def connect_composio_account(user_id: str):
     try:
         conn_req = composio_client.connected_accounts.link(
@@ -66,27 +66,17 @@ def connect_composio_account(user_id: str):
     except Exception as e:
         st.error(f"Connection error: {e}")
 
-def send_email_with_composio(to: str, subject: str, body: str):
-    if not st.session_state.user_id:
-        st.error("No user ID found.")
+def send_email(to: str, subject: str, body: str):
+    if not st.session_state.connected_account_id:
+        st.error("Connect Gmail account first!")
         return None
     try:
-        # Get Gmail tool
-        tools = composio_client.tools.get(
+        # Direct send using GoogleProvider
+        result = composio_client.provider.send_email(
             user_id=st.session_state.user_id,
-            tools=["GMAIL_SEND_EMAIL"]
-        )
-        # Create Gemini chat with tools
-        config = types.GenerateContentConfig(tools=tools)
-        chat = genai_client.chats.create(model="gemini-2.0-flash", config=config)
-
-        prompt = f"Send an email to {to} with subject '{subject}' and body '{body}'."
-        response = chat.send_message(prompt)
-
-        # ✅ Correct: use handle_response instead of handle_tool_calls
-        result = composio_client.provider.handle_response(
-            user_id=st.session_state.user_id,
-            response=response
+            to=to,
+            subject=subject,
+            body=body
         )
         return result
     except Exception as e:
@@ -94,40 +84,38 @@ def send_email_with_composio(to: str, subject: str, body: str):
         return None
 
 # ------------------- Streamlit UI -------------------
-user_prompt = st.text_area("💬 Ask AI to draft your email:", placeholder="Write an email to a client...")
-if st.button("Generate Email Draft"):
+st.subheader("💬 Draft Email (Optional AI)")
+
+user_prompt = st.text_area("Ask AI to draft your email:", placeholder="Write something for AI to draft...")
+if st.button("Generate Draft"):
     if user_prompt.strip() == "":
-        st.warning("Please enter a prompt.")
+        st.warning("Please enter a prompt for AI.")
     else:
-        with st.spinner("Generating..."):
-            draft = generate_ai_response(user_prompt)
-            st.session_state.draft = draft
+        with st.spinner("Generating draft…"):
+            st.session_state.draft = generate_ai_response(user_prompt)
             st.session_state.show_form = True
 
-if st.session_state.show_form and st.session_state.draft:
-    st.subheader("📝 Draft")
-    st.write(st.session_state.draft)
+if st.session_state.show_form:
+    st.subheader("📝 Draft / Compose Email")
+    to = st.text_input("To (recipient email)")
+    subject = st.text_input("Subject")
+    body = st.text_area("Body", value=st.session_state.draft, height=200)
 
-    with st.form("email_form"):
-        to = st.text_input("To (recipient email)")
-        subject = st.text_input("Subject")
-        body = st.text_area("Body", value=st.session_state.draft, height=200)
-        btn = st.form_submit_button("Send Email")
-        if btn:
-            if not to.strip() or not subject.strip():
-                st.error("Please fill in both 'To' and 'Subject' fields.")
-            else:
-                with st.spinner("Sending email…"):
-                    resp = send_email_with_composio(to, subject, body)
-                    if resp:
-                        st.success("✅ Email sent successfully!")
-                        st.json(resp)
-                        st.session_state.draft = ""
-                        st.session_state.show_form = False
-                    else:
-                        st.error("❌ Failed to send email")
+    if st.button("Send Email"):
+        if not to.strip() or not subject.strip() or not body.strip():
+            st.error("Please fill all fields!")
+        else:
+            with st.spinner("Sending email…"):
+                resp = send_email(to, subject, body)
+                if resp:
+                    st.success("✅ Email sent successfully!")
+                    st.json(resp)
+                    st.session_state.draft = ""
+                    st.session_state.show_form = False
+                else:
+                    st.error("❌ Failed to send email")
 
-# Connection button at the bottom
+# ------------------- Connection -------------------
 st.divider()
 if not st.session_state.connected_account_id:
     if st.button("🔗 Connect Google Account"):
