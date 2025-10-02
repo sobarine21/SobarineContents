@@ -15,7 +15,7 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # ------------------- Initialize Clients -------------------
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio_client = Composio(provider=GoogleProvider(), api_key=COMPOSIO_API_KEY)
+composio_client = Composio(api_key=COMPOSIO_API_KEY, provider=GoogleProvider())
 
 # ------------------- Session State -------------------
 if "connected_account_id" not in st.session_state:
@@ -29,21 +29,21 @@ if "show_form" not in st.session_state:
 
 # ------------------- Gemini AI Function -------------------
 def generate_ai_response(prompt: str) -> str:
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
-    config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-        safety_settings=[
-            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
-            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
-            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
-            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
-        ],
-    )
     try:
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            safety_settings=[
+                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
+                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
+                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
+            ],
+        )
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
-            config=config,
+            config=config
         )
         return resp.text.strip()
     except Exception as e:
@@ -56,7 +56,7 @@ def connect_composio_account(user_id: str):
         conn_req = composio_client.connected_accounts.link(
             user_id=user_id,
             auth_config_id=AUTH_CONFIG_ID,
-            callback_url="https://evercreate.streamlit.app/"
+            callback_url="https://your-streamlit-app-url/"
         )
         st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
         connected = conn_req.wait_for_connection()
@@ -67,22 +67,16 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection error: {e}")
 
 def send_email_with_composio(to: str, subject: str, body: str):
-    """Send email using Composio + Gemini via GoogleProvider"""
     if not st.session_state.user_id:
         st.error("No user ID found.")
         return None
-
     try:
-        email_prompt = f"""
-        Draft and send an email using Gmail API:
-        To: {to}
-        Subject: {subject}
-        Body: {body}
-        """
-
+        email_prompt = f"""Draft and send an email using Gmail API:
+To: {to}
+Subject: {subject}
+Body: {body}
+"""
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
-
-        # Generate email content using Gemini
         response = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
@@ -90,31 +84,25 @@ def send_email_with_composio(to: str, subject: str, body: str):
                 thinking_config=types.ThinkingConfig(thinking_budget=0)
             )
         )
-
-        # Send email via Composio GoogleProvider
         result = composio_client.provider.handle_tool_calls(
             response=response,
             user_id=st.session_state.user_id
         )
         return result
-
     except Exception as e:
         st.error(f"Error sending email: {e}")
-        import traceback
-        st.error(traceback.format_exc())
         return None
 
 # ------------------- Streamlit UI -------------------
 user_prompt = st.text_area("💬 Ask AI to draft your email:", placeholder="Write an email to a client...")
-
 if st.button("Generate Email Draft"):
     if user_prompt.strip() == "":
         st.warning("Please enter a prompt.")
     else:
         with st.spinner("Generating..."):
             draft = generate_ai_response(user_prompt)
-        st.session_state.draft = draft
-        st.session_state.show_form = True
+            st.session_state.draft = draft
+            st.session_state.show_form = True
 
 if st.session_state.show_form and st.session_state.draft:
     st.subheader("📝 Draft")
@@ -125,7 +113,6 @@ if st.session_state.show_form and st.session_state.draft:
         subject = st.text_input("Subject")
         body = st.text_area("Body", value=st.session_state.draft, height=200)
         btn = st.form_submit_button("Send Email")
-
         if btn:
             if not to.strip() or not subject.strip():
                 st.error("Please fill in both 'To' and 'Subject' fields.")
@@ -149,4 +136,4 @@ else:
     st.success("✅ Google Account Connected")
     if st.button("🔌 Disconnect"):
         st.session_state.connected_account_id = None
-        st.rerun()
+        st.experimental_rerun()
