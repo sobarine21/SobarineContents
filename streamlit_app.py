@@ -25,7 +25,7 @@ except Exception as e:
 # --- Initialize Session State ---
 for key, default_value in [
     ("connected_account_id", None),
-    ("user_id", "user-1"),
+    ("user_id", "user-1"), # Using a default user ID for demonstration
     ("draft", ""),
     ("show_form", False),
 ]:
@@ -67,19 +67,19 @@ def connect_composio_account(user_id: str):
     except Exception as e:
         st.error(f"Connection Error: {e}")
 
-def send_email(to: str, subject: str, body: str):
-    """Sends an email using the Composio 'tools.run' method."""
+def send_email(recipient: str, subject: str, body: str):
+    """Sends an email using the Composio 'tools.run' method with the correct parameters."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # THE CORRECT METHOD, as per the documentation you provided.
+        # Using the correct parameter name 'recipient_email' as per the documentation
         response = composio_client.tools.run(
             user_id=st.session_state.user_id,
-            tool="gmail",  # The tool name is 'gmail'
-            action="send_email",  # The action name is 'send_email'
+            tool="gmail",
+            action="send_email",
             params={
-                "to": to,
+                "recipient_email": recipient, # CORRECTED PARAMETER
                 "subject": subject,
                 "body": body
             }
@@ -104,18 +104,18 @@ with st.expander("💬 Draft an Email with AI", expanded=True):
 if st.session_state.show_form or st.session_state.connected_account_id:
     st.subheader("📝 Compose and Send")
     with st.form("email_form"):
-        to = st.text_input("To (Recipient Email)")
+        # Changed the variable name from 'to' to 'recipient' for clarity
+        recipient = st.text_input("To (Recipient Email)")
         subject = st.text_input("Subject")
         body = st.text_area("Body", value=st.session_state.draft, height=250)
         
         submitted = st.form_submit_button("Send Email")
         if submitted:
-            if not all([to.strip(), subject.strip(), body.strip()]):
+            if not all([recipient.strip(), subject.strip(), body.strip()]):
                 st.error("Please fill in all fields to send the email.")
             else:
                 with st.spinner("Sending email..."):
-                    resp = send_email(to, subject, body)
-                    # The response from tools.run is a direct dictionary
+                    resp = send_email(recipient, subject, body)
                     if resp and resp.get("execution_details", {}).get("success"):
                         st.success("✅ Email sent successfully!")
                         st.json(resp.get("response_data", {}))
@@ -134,4 +134,3 @@ else:
     if st.button("🔌 Disconnect Account"):
         st.session_state.connected_account_id = None
         st.rerun()
-
