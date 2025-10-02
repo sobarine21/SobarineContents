@@ -2,6 +2,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from composio import Composio
+from composio.client import App, Action
 from composio_google import GoogleProvider
 
 # --- Page Setup ---
@@ -15,7 +16,7 @@ try:
     AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
     
     genai_client = genai.Client(api_key=GEMINI_API_KEY)
-    composio_client = Composio(api_key=COMPOSIO_API_KEY, provider=GoogleProvider())
+    composio_client = Composio(api_key=COMPOSIO_API_KEY)
 except KeyError as e:
     st.error(f"Missing secret: {e}. Please add it to your Streamlit secrets.")
     st.stop()
@@ -38,14 +39,13 @@ query_params = st.query_params
 if "connected_account_id" in query_params and not st.session_state.connected_account_id:
     st.session_state.connected_account_id = query_params["connected_account_id"]
     st.success("✅ Gmail account connected successfully!")
-    st.query_params.clear() # Clear params to avoid re-triggering
+    st.query_params.clear()
 
 # --- Core Functions ---
 def generate_ai_response(prompt: str) -> str:
     """Generates an email draft using the Gemini API."""
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
-        # Configuration to optimize for faster, non-streaming responses
         config = types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_budget=0))
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
@@ -63,31 +63,38 @@ def connect_composio_account(user_id: str):
         conn_req = composio_client.connected_accounts.link(
             user_id=user_id,
             auth_config_id=AUTH_CONFIG_ID,
-            callback_url="https://evercreate.streamlit.app/", # Make sure this matches your deployed URL
+            callback_url="https://evercreate.streamlit.app/",
         )
         st.link_button("🔗 Authenticate with Google", conn_req.redirect_url)
     except Exception as e:
         st.error(f"Connection Error: {e}")
 
 def send_email(to: str, subject: str, body: str):
-    """Sends an email using the Composio Gmail action."""
+    """Sends an email using the Composio Gmail toolkit."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        result = composio_client.connected_accounts.run_action(
-            connected_account_id=st.session_state.connected_account_id,
-            action="composio_google__gmail_send_email",
-            params={"to": to, "subject": subject, "body": body},
+        # Get the specific Gmail tool instance for the user
+        gmail_tool = composio_client.get_app(app=App.GMAIL)
+        
+        # Execute the send_email action
+        response = gmail_tool.actions.send_email.execute(
+            request_data={
+                "recipient_email": to,
+                "subject": subject,
+                "body": body
+            }
         )
-        return result
+        
+        return response
     except Exception as e:
         st.error(f"Error sending email: {e}")
         return None
 
 # --- UI: AI Draft Generation ---
 with st.expander("💬 Draft an Email with AI", expanded=True):
-    user_prompt = st.text_area("Your prompt:", placeholder="e.g., Write a follow-up email to a potential client I met at the conference last week.")
+    user_prompt = st.text_area("Your prompt:", placeholder="e.g., Write a follow-up email to a potential client...")
     if st.button("Generate Draft", key="generate"):
         if not user_prompt.strip():
             st.warning("Please enter a prompt for the AI.")
@@ -111,14 +118,14 @@ if st.session_state.show_form or st.session_state.connected_account_id:
             else:
                 with st.spinner("Sending email..."):
                     resp = send_email(to, subject, body)
-                    if resp:
+                    if resp and resp.is_success:
                         st.success("✅ Email sent successfully!")
-                        st.json(resp)
-                        # Reset state after sending
+                        st.json(resp.response_data)
                         st.session_state.draft = ""
                         st.session_state.show_form = False
                     else:
-                        st.error("❌ Failed to send the email.")
+                        st.error(f"❌ Failed to send email. Error: {resp.error if resp else 'Unknown'}")
+
 
 # --- UI: Connection Management ---
 st.divider()
@@ -126,7 +133,8 @@ if not st.session_state.connected_account_id:
     st.subheader("Connect Your Account")
     connect_composio_account(st.session_state.user_id)
 else:
-    st.success("✅ Google Account is Connected.")
+    st.success(f"✅ Google Account is Connected.")
     if st.button("🔌 Disconnect Account"):
         st.session_state.connected_account_id = None
         st.rerun()
+
