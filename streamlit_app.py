@@ -68,17 +68,16 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection Error: {e}")
 
 def send_email(to: str, subject: str, body: str):
-    """Sends an email using the Composio 'tools.run' method."""
+    """Sends an email using the Composio API."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        response = composio_client.tools.run(
+        # Assuming the correct method to send an email is 'send_email'
+        response = composio_client.tools.send_email(
             user_id=st.session_state.user_id,
-            tool="gmail",  # The tool name is 'gmail'
-            action="GMAIL_SEND_EMAIL",  # The action name is 'GMAIL_SEND_EMAIL'
             params={
-                "recipient_email": to,
+                "to": to,
                 "subject": subject,
                 "body": body
             }
