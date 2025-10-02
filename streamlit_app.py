@@ -2,8 +2,6 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from composio import Composio
-from composio.client import App, Action
-from composio_google import GoogleProvider
 
 # --- Page Setup ---
 st.set_page_config(page_title="AI Email Agent", layout="centered", page_icon="📧")
@@ -27,7 +25,7 @@ except Exception as e:
 # --- Initialize Session State ---
 for key, default_value in [
     ("connected_account_id", None),
-    ("user_id", "user-1"), # Default user ID
+    ("user_id", "user-1"),
     ("draft", ""),
     ("show_form", False),
 ]:
@@ -75,8 +73,8 @@ def send_email(to: str, subject: str, body: str):
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # Get the specific Gmail tool instance for the user
-        gmail_tool = composio_client.get_app(app=App.GMAIL)
+        # Get the Gmail tool instance using its string identifier
+        gmail_tool = composio_client.get_tool(name="gmail")
         
         # Execute the send_email action
         response = gmail_tool.actions.send_email.execute(
@@ -126,14 +124,13 @@ if st.session_state.show_form or st.session_state.connected_account_id:
                     else:
                         st.error(f"❌ Failed to send email. Error: {resp.error if resp else 'Unknown'}")
 
-
 # --- UI: Connection Management ---
 st.divider()
 if not st.session_state.connected_account_id:
     st.subheader("Connect Your Account")
     connect_composio_account(st.session_state.user_id)
 else:
-    st.success(f"✅ Google Account is Connected.")
+    st.success("✅ Google Account is Connected.")
     if st.button("🔌 Disconnect Account"):
         st.session_state.connected_account_id = None
         st.rerun()
