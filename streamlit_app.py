@@ -72,15 +72,11 @@ def send_email(to: str, subject: str, body: str):
         return None
 
     try:
-        # Get the connected account
-        connected_account = composio_client.connected_accounts.get(
-            connected_account_id=st.session_state.connected_account_id
-        )
-        
-        # Execute the Gmail send action
-        result = connected_account.execute_action(
-            action="GMAIL_SEND_EMAIL",
-            params={
+        # Execute the Gmail send action directly
+        result = composio_client.connected_accounts.execute(
+            connected_account_id=st.session_state.connected_account_id,
+            action_name="GMAIL_SEND_EMAIL",
+            input_data={
                 "to": to,
                 "subject": subject,
                 "body": body,
