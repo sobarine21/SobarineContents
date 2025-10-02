@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 from composio import Composio
 from composio_google import GoogleProvider
+from composio.tools import ActionRequest  # ✅ KEY FIX
 
 # ------------------- Setup -------------------
 st.set_page_config(page_title="AI Email Agent", layout="centered")
@@ -37,7 +38,9 @@ if "connected_account_id" in query_params and not st.session_state.connected_acc
 def generate_ai_response(prompt: str) -> str:
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
-        config = types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_budget=0))
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0)
+        )
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
@@ -66,15 +69,12 @@ def send_email(to: str, subject: str, body: str):
         return None
 
     try:
-        result = composio_client.actions.run(
-            action_name="composio_google__gmail_send_email",
-            params={
-                "to": to,
-                "subject": subject,
-                "body": body
-            },
+        action_req = ActionRequest(
+            action="composio_google__gmail_send_email",
+            params={"to": to, "subject": subject, "body": body},
             connected_account_id=st.session_state.connected_account_id
         )
+        result = composio_client.execute_action(action_req)
         return result
     except Exception as e:
         st.error(f"Error sending email: {e}")
