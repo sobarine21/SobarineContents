@@ -3,7 +3,7 @@
 import streamlit as st
 from google import genai
 from google.genai import types
-from composio import Composio
+from composio import ComposioToolSet, Action
 
 # ------------------- Setup -------------------
 st.set_page_config(page_title="AI Email Agent", layout="centered")
@@ -16,7 +16,7 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # Initialize clients
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio = Composio(api_key=COMPOSIO_API_KEY)
+composio_toolset = ComposioToolSet(api_key=COMPOSIO_API_KEY)
 
 # Session state initialization
 if "connected_account_id" not in st.session_state:
@@ -53,15 +53,21 @@ def generate_ai_response(prompt: str) -> str:
 # ------------------- Composio Email Functions -------------------
 
 def connect_composio_account(user_id: str):
-    conn_req = composio.connected_accounts.link(
-        user_id=user_id,
-        auth_config_id=AUTH_CONFIG_ID,
-        callback_url="https://evercreate.streamlit.app/"
-    )
-    st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
-    connected = conn_req.wait_for_connection()
-    st.session_state.connected_account_id = connected.id
-    st.success("✅ Gmail account connected")
+    try:
+        from composio import Composio
+        composio = Composio(api_key=COMPOSIO_API_KEY)
+        
+        conn_req = composio.connected_accounts.link(
+            user_id=user_id,
+            auth_config_id=AUTH_CONFIG_ID,
+            callback_url="https://evercreate.streamlit.app/"
+        )
+        st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
+        connected = conn_req.wait_for_connection()
+        st.session_state.connected_account_id = connected.id
+        st.success("✅ Gmail account connected")
+    except Exception as e:
+        st.error(f"Connection error: {e}")
 
 def send_email(to: str, subject: str, body: str):
     if not st.session_state.connected_account_id:
@@ -69,15 +75,15 @@ def send_email(to: str, subject: str, body: str):
         return None
 
     try:
-        result = composio.actions.execute_action(
-            action="gmail.send_email",
-            connected_account_id=st.session_state.connected_account_id,
+        # Execute the action using ComposioToolSet
+        result = composio_toolset.execute_action(
+            action=Action.GMAIL_SEND_EMAIL,
             params={
                 "to": to,
                 "subject": subject,
                 "body": body,
-                "is_html": False
             },
+            entity_id=st.session_state.connected_account_id
         )
         return result
     except Exception as e:
