@@ -1,5 +1,3 @@
-# streamlit_app.py
-
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -102,9 +100,12 @@ Please send this email now."""
             )
         )
         
+        # Get the generated text from the response
+        generated_text = response.text.strip()  # Adjusted to get the text directly
+        
         # Handle tool calls with Composio
         result = composio_client.provider.handle_tool_calls(
-            response=response,
+            response=generated_text,  # Pass the generated text instead of the response object
             user_id=st.session_state.user_id
         )
         
