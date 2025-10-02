@@ -18,9 +18,13 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
 composio = Composio(api_key=COMPOSIO_API_KEY)
 
-# Session state
+# Session state initialization
 if "connected_account_id" not in st.session_state:
     st.session_state.connected_account_id = None
+if "draft" not in st.session_state:
+    st.session_state.draft = ""
+if "show_form" not in st.session_state:
+    st.session_state.show_form = False
 
 # ------------------- Gemini AI Function -------------------
 
@@ -91,23 +95,42 @@ if st.button("Generate Email Draft"):
     else:
         with st.spinner("Generating..."):
             draft = generate_ai_response(user_prompt)
-        st.subheader("📝 Draft")
-        st.write(draft)
+        st.session_state.draft = draft
+        st.session_state.show_form = True
 
-        with st.form("email_form"):
-            to = st.text_input("To (recipient email)")
-            subject = st.text_input("Subject")
-            body = st.text_area("Body", value=draft)
-            btn = st.form_submit_button("Send Email")
-            if btn:
+# Show draft and form if available
+if st.session_state.show_form and st.session_state.draft:
+    st.subheader("📝 Draft")
+    st.write(st.session_state.draft)
+
+    with st.form("email_form"):
+        to = st.text_input("To (recipient email)")
+        subject = st.text_input("Subject")
+        body = st.text_area("Body", value=st.session_state.draft, height=200)
+        btn = st.form_submit_button("Send Email")
+        
+        if btn:
+            if not to.strip() or not subject.strip():
+                st.error("Please fill in both 'To' and 'Subject' fields.")
+            else:
                 with st.spinner("Sending email…"):
                     resp = send_email(to, subject, body)
                     if resp:
-                        st.success("✅ Email sent")
+                        st.success("✅ Email sent successfully!")
                         st.json(resp)
+                        # Clear the draft after successful send
+                        st.session_state.draft = ""
+                        st.session_state.show_form = False
                     else:
                         st.error("❌ Failed to send email")
 
+# Connection button at the bottom
+st.divider()
 if not st.session_state.connected_account_id:
     if st.button("🔗 Connect Google Account"):
         connect_composio_account(user_id)
+else:
+    st.success("✅ Google Account Connected")
+    if st.button("🔌 Disconnect"):
+        st.session_state.connected_account_id = None
+        st.rerun()
