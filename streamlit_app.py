@@ -15,7 +15,8 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # Initialize clients
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio_client = Composio(api_key=COMPOSIO_API_KEY)  # Provider auto-registered internally
+# ✅ Initialize Composio with Gmail provider
+composio_client = Composio[GoogleProvider](api_key=COMPOSIO_API_KEY)
 
 # Session state initialization
 if "connected_account_id" not in st.session_state:
@@ -67,14 +68,14 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection error: {e}")
 
 def send_email_with_composio(to: str, subject: str, body: str):
-    """Send email using Composio + Gemini"""
+    """Send email using Composio + Gemini via GoogleProvider"""
     if not st.session_state.user_id:
         st.error("No user ID found.")
         return None
 
     try:
         email_prompt = f"""
-        Draft an email using GoogleProvider Gmail API:
+        Draft an email using Gmail API:
         To: {to}
         Subject: {subject}
         Body: {body}
@@ -96,11 +97,10 @@ def send_email_with_composio(to: str, subject: str, body: str):
             )
         )
 
-        # ✅ Correct: use provider via composio_client.provider directly
+        # ✅ Correct: use GoogleProvider handle_tool_calls directly
         result = composio_client.provider.handle_tool_calls(
             response=response,
-            user_id=st.session_state.user_id,
-            tool_name="GMAIL_SEND_EMAIL"  # specify the Gmail tool
+            user_id=st.session_state.user_id
         )
         return result
 
