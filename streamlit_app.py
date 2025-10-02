@@ -73,14 +73,14 @@ def send_email(to: str, subject: str, body: str):
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # CORRECT METHOD: Fetch the specific action for the user
+        # Fetch the tool(s) as a list
         tools = composio_client.tools.get(
             user_id=st.session_state.user_id,
             tools=["GMAIL_SEND_EMAIL"]
         )
         
-        # The returned object is a dictionary with the action itself
-        send_email_action = tools["GMAIL_SEND_EMAIL"]
+        # Access the first tool in the list
+        send_email_action = tools[0]
         
         # Execute the action
         response = send_email_action.execute(
