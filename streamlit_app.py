@@ -77,12 +77,6 @@ def send_email_with_composio(to: str, subject: str, body: str):
         return None
 
     try:
-        # Get Gmail tools for the user
-        tools = composio_client.tools.get(
-            user_id=st.session_state.user_id,
-            tools=["GMAIL_SEND_EMAIL"]
-        )
-        
         # Create a prompt for sending the email
         email_prompt = f"""Send an email with the following details:
 To: {to}
@@ -91,19 +85,20 @@ Body: {body}
 
 Please send this email now."""
 
-        # Use Gemini to generate content with tools
+        # Use Gemini to generate content
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
         
         response = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
-            tools=tools,
             config=types.GenerateContentConfig(
-                tool_config=types.ToolConfig(
-                    function_calling_config=types.FunctionCallingConfig(
-                        mode="AUTO"
-                    )
-                )
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                ],
             )
         )
         
