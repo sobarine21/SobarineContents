@@ -100,12 +100,16 @@ Please send this email now."""
             )
         )
         
-        # Get the generated text from the response
-        generated_text = response.text.strip()  # Adjusted to get the text directly
+        # Create a response object that Composio expects
+        response_object = {
+            "choices": [{
+                "text": response.text.strip()  # Use the generated text
+            }]
+        }
         
         # Handle tool calls with Composio
         result = composio_client.provider.handle_tool_calls(
-            response=generated_text,  # Pass the generated text instead of the response object
+            response=response_object,  # Pass the structured response object
             user_id=st.session_state.user_id
         )
         
