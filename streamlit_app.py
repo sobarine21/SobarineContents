@@ -13,12 +13,12 @@ GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 COMPOSIO_API_KEY = st.secrets["COMPOSIO_API_KEY"]
 AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
-# Initialize clients
+# ------------------- Initialize Clients -------------------
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-# ✅ Initialize Composio with Gmail provider
-composio_client = Composio[GoogleProvider](api_key=COMPOSIO_API_KEY)
+# Initialize Composio with Gmail provider
+composio_client = Composio(api_key=COMPOSIO_API_KEY, provider=GoogleProvider())
 
-# Session state initialization
+# ------------------- Session State -------------------
 if "connected_account_id" not in st.session_state:
     st.session_state.connected_account_id = None
 if "user_id" not in st.session_state:
@@ -51,7 +51,7 @@ def generate_ai_response(prompt: str) -> str:
         st.error(f"Gemini API error: {e}")
         return "⚠️ Could not generate AI response."
 
-# ------------------- Composio Email Functions -------------------
+# ------------------- Composio Gmail Functions -------------------
 def connect_composio_account(user_id: str):
     try:
         conn_req = composio_client.connected_accounts.link(
@@ -75,7 +75,7 @@ def send_email_with_composio(to: str, subject: str, body: str):
 
     try:
         email_prompt = f"""
-        Draft an email using Gmail API:
+        Draft and send an email using Gmail API:
         To: {to}
         Subject: {subject}
         Body: {body}
@@ -83,21 +83,16 @@ def send_email_with_composio(to: str, subject: str, body: str):
 
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
 
+        # Use Gemini to generate email content
         response = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
-                safety_settings=[
-                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                ],
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
             )
         )
 
-        # ✅ Correct: use GoogleProvider handle_tool_calls directly
+        # ✅ Send email via Composio GoogleProvider
         result = composio_client.provider.handle_tool_calls(
             response=response,
             user_id=st.session_state.user_id
