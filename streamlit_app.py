@@ -56,7 +56,7 @@ def connect_composio_account(user_id: str):
         conn_req = composio_client.connected_accounts.link(
             user_id=user_id,
             auth_config_id=AUTH_CONFIG_ID,
-            callback_url="https://your-streamlit-app-url/"
+            callback_url="https://evercreate.streamlit.app/"
         )
         st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
         connected = conn_req.wait_for_connection()
