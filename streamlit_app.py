@@ -47,7 +47,7 @@ def generate_ai_response(prompt: str) -> str:
         # Fallback
         try:
             resp2 = genai_client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 contents=contents,
                 config=config,
             )
@@ -60,7 +60,7 @@ def generate_ai_response(prompt: str) -> str:
 
 def connect_composio_account(user_id: str):
     conn_req = composio.connected_accounts.link(
-        user_id, AUTH_CONFIG_ID, callback_url="https://your-app.com/callback"
+        user_id, AUTH_CONFIG_ID, callback_url="https://evercreate.streamlit.app/"
     )
     st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
     connected = conn_req.wait_for_connection()
