@@ -15,7 +15,7 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # Initialize clients
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio_client = Composio[GoogleProvider](api_key=COMPOSIO_API_KEY)
+composio_client = Composio(api_key=COMPOSIO_API_KEY)  # no [GoogleProvider] here
 
 # Session state initialization
 if "connected_account_id" not in st.session_state:
@@ -69,20 +69,39 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection error: {e}")
 
 def send_email_with_composio(to: str, subject: str, body: str):
-    """Send email using Composio Gmail action"""
+    """Send email using Composio + Gemini"""
     if not st.session_state.user_id:
         st.error("No user ID found.")
         return None
 
     try:
-        # Execute Gmail Send Email via Composio
-        result = composio_client.actions.execute(
-            action="GMAIL_SEND_EMAIL",
-            params={
-                "to": to,
-                "subject": subject,
-                "body": body
-            },
+        # Prompt for Gemini
+        email_prompt = f"""
+        Use GoogleProvider Gmail API to send this email:
+        To: {to}
+        Subject: {subject}
+        Body: {body}
+        """
+
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
+
+        response = genai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                ],
+            )
+        )
+
+        # Correct way: use provider handle_tool_calls
+        result = composio_client.get_provider(GoogleProvider).handle_tool_calls(
+            response=response,
             user_id=st.session_state.user_id
         )
         return result
