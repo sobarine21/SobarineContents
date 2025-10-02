@@ -30,6 +30,12 @@ if "subject" not in st.session_state:
 if "body" not in st.session_state:
     st.session_state.body = ""
 
+# ------------------- Handle OAuth redirect -------------------
+query_params = st.query_params
+if "connected_account_id" in query_params:
+    st.session_state.connected_account_id = query_params["connected_account_id"]
+    st.success("✅ Gmail account connected successfully")
+
 # ------------------- Gemini AI Function -------------------
 def generate_ai_response(prompt: str) -> str:
     contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
@@ -58,10 +64,7 @@ def connect_composio_account(user_id: str):
     conn_req = composio.connected_accounts.link(
         user_id, AUTH_CONFIG_ID, callback_url="https://evercreate.streamlit.app/"
     )
-    st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
-    connected = conn_req.wait_for_connection()
-    st.session_state.connected_account_id = connected.id
-    st.success("✅ Gmail account connected")
+    st.info(f"Authenticate here: [Click to connect Gmail]({conn_req.redirect_url})")
 
 def send_email(to: str, subject: str, body: str):
     if not st.session_state.connected_account_id:
@@ -69,7 +72,7 @@ def send_email(to: str, subject: str, body: str):
         return None
 
     result = composio.actions.execute(
-        "GMAIL_SEND_EMAIL",  # correct action name
+        "GMAIL_SEND_EMAIL",   # ✅ correct action
         connected_account_id=st.session_state.connected_account_id,
         input={
             "recipient_email": to,
@@ -82,6 +85,7 @@ def send_email(to: str, subject: str, body: str):
 
 # ------------------- Streamlit UI -------------------
 user_prompt = st.text_area("💬 Ask AI to draft your email:", placeholder="Write an email to a client...")
+user_id = "user-1"  # Replace with real user id in production
 
 if st.button("Generate Email Draft"):
     if user_prompt.strip() == "":
@@ -90,9 +94,8 @@ if st.button("Generate Email Draft"):
         with st.spinner("Generating..."):
             draft = generate_ai_response(user_prompt)
         st.session_state.draft = draft
-        st.session_state.body = draft  # default body
+        st.session_state.body = draft
 
-# Show draft & email form only if a draft exists
 if st.session_state.draft:
     st.subheader("📝 Draft")
     st.write(st.session_state.draft)
@@ -112,7 +115,7 @@ if st.session_state.draft:
                 else:
                     st.error("❌ Failed to send email")
 
-# Google account connect button
+# Google connect button if not connected
 if not st.session_state.connected_account_id:
     if st.button("🔗 Connect Google Account"):
-        connect_composio_account(user_id="user-1")
+        connect_composio_account(user_id)
