@@ -27,18 +27,18 @@ if "draft" not in st.session_state:
 if "show_form" not in st.session_state:
     st.session_state.show_form = False
 
-# ------------------- Gemini AI Function (Draft only) -------------------
+# ------------------- Parse Connected Account from URL -------------------
+query_params = st.query_params
+if "connected_account_id" in query_params and not st.session_state.connected_account_id:
+    st.session_state.connected_account_id = query_params["connected_account_id"]
+    st.success("✅ Gmail account connected successfully!")
+
+# ------------------- Gemini AI Function -------------------
 def generate_ai_response(prompt: str) -> str:
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
         config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(thinking_budget=0),
-            safety_settings=[
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
-            ],
         )
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
@@ -50,7 +50,7 @@ def generate_ai_response(prompt: str) -> str:
         st.error(f"Gemini API error: {e}")
         return "⚠️ Could not generate AI response."
 
-# ------------------- Composio Gmail Functions (Send only) -------------------
+# ------------------- Composio Gmail Functions -------------------
 def connect_composio_account(user_id: str):
     try:
         conn_req = composio_client.connected_accounts.link(
@@ -59,10 +59,6 @@ def connect_composio_account(user_id: str):
             callback_url="https://evercreate.streamlit.app/"
         )
         st.info(f"Authenticate here: [Link]({conn_req.redirect_url})")
-        connected = conn_req.wait_for_connection()
-        st.session_state.connected_account_id = connected.id
-        st.session_state.user_id = user_id
-        st.success("✅ Gmail account connected")
     except Exception as e:
         st.error(f"Connection error: {e}")
 
@@ -71,12 +67,14 @@ def send_email(to: str, subject: str, body: str):
         st.error("Connect Gmail account first!")
         return None
     try:
-        # Direct send using GoogleProvider
-        result = composio_client.provider.send_email(
-            user_id=st.session_state.user_id,
-            to=to,
-            subject=subject,
-            body=body
+        result = composio_client.connected_accounts.actions.run(
+            entity_id=st.session_state.connected_account_id,
+            action=GoogleProvider.GMAIL_SEND_EMAIL,
+            params={
+                "to": to,
+                "subject": subject,
+                "body": body
+            }
         )
         return result
     except Exception as e:
@@ -95,7 +93,7 @@ if st.button("Generate Draft"):
             st.session_state.draft = generate_ai_response(user_prompt)
             st.session_state.show_form = True
 
-if st.session_state.show_form:
+if st.session_state.show_form or st.session_state.connected_account_id:
     st.subheader("📝 Draft / Compose Email")
     to = st.text_input("To (recipient email)")
     subject = st.text_input("Subject")
