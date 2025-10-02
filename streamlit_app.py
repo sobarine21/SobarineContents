@@ -37,9 +37,7 @@ if "connected_account_id" in query_params and not st.session_state.connected_acc
 def generate_ai_response(prompt: str) -> str:
     try:
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
-        config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-        )
+        config = types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_budget=0))
         resp = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
@@ -66,15 +64,16 @@ def send_email(to: str, subject: str, body: str):
     if not st.session_state.connected_account_id:
         st.error("Connect Gmail account first!")
         return None
+
     try:
-        result = composio_client.connected_accounts.actions.run(
-            entity_id=st.session_state.connected_account_id,
-            action=GoogleProvider.GMAIL_SEND_EMAIL,
+        result = composio_client.actions.run(
+            action_name="composio_google__gmail_send_email",
             params={
                 "to": to,
                 "subject": subject,
                 "body": body
-            }
+            },
+            connected_account_id=st.session_state.connected_account_id
         )
         return result
     except Exception as e:
@@ -83,8 +82,8 @@ def send_email(to: str, subject: str, body: str):
 
 # ------------------- Streamlit UI -------------------
 st.subheader("💬 Draft Email (Optional AI)")
-
 user_prompt = st.text_area("Ask AI to draft your email:", placeholder="Write something for AI to draft...")
+
 if st.button("Generate Draft"):
     if user_prompt.strip() == "":
         st.warning("Please enter a prompt for AI.")
