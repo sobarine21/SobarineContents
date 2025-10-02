@@ -15,8 +15,7 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # ------------------- Initialize Clients -------------------
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-# Initialize Composio with Gmail provider
-composio_client = Composio(api_key=COMPOSIO_API_KEY, provider=GoogleProvider())
+composio_client = Composio(provider=GoogleProvider(), api_key=COMPOSIO_API_KEY)
 
 # ------------------- Session State -------------------
 if "connected_account_id" not in st.session_state:
@@ -83,7 +82,7 @@ def send_email_with_composio(to: str, subject: str, body: str):
 
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
 
-        # Use Gemini to generate email content
+        # Generate email content using Gemini
         response = genai_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents,
@@ -92,7 +91,7 @@ def send_email_with_composio(to: str, subject: str, body: str):
             )
         )
 
-        # ✅ Send email via Composio GoogleProvider
+        # Send email via Composio GoogleProvider
         result = composio_client.provider.handle_tool_calls(
             response=response,
             user_id=st.session_state.user_id
