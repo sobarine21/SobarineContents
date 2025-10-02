@@ -15,14 +15,13 @@ AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
 
 # Initialize clients
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
-composio_client = Composio(api_key=COMPOSIO_API_KEY)  # No [GoogleProvider] here
-google_provider = GoogleProvider(composio_client)   # ✅ Correct: instantiate provider
+composio_client = Composio(api_key=COMPOSIO_API_KEY)  # Provider auto-registered internally
 
 # Session state initialization
 if "connected_account_id" not in st.session_state:
     st.session_state.connected_account_id = None
 if "user_id" not in st.session_state:
-    st.session_state.user_id = "user-1"  # Replace with real user in production
+    st.session_state.user_id = "user-1"
 if "draft" not in st.session_state:
     st.session_state.draft = ""
 if "show_form" not in st.session_state:
@@ -74,7 +73,6 @@ def send_email_with_composio(to: str, subject: str, body: str):
         return None
 
     try:
-        # Prompt for Gemini to draft the email
         email_prompt = f"""
         Draft an email using GoogleProvider Gmail API:
         To: {to}
@@ -98,10 +96,11 @@ def send_email_with_composio(to: str, subject: str, body: str):
             )
         )
 
-        # ✅ Use provider directly
-        result = google_provider.handle_tool_calls(
+        # ✅ Correct: use provider via composio_client.provider directly
+        result = composio_client.provider.handle_tool_calls(
             response=response,
-            user_id=st.session_state.user_id
+            user_id=st.session_state.user_id,
+            tool_name="GMAIL_SEND_EMAIL"  # specify the Gmail tool
         )
         return result
 
@@ -123,7 +122,6 @@ if st.button("Generate Email Draft"):
         st.session_state.draft = draft
         st.session_state.show_form = True
 
-# Show draft and form if available
 if st.session_state.show_form and st.session_state.draft:
     st.subheader("📝 Draft")
     st.write(st.session_state.draft)
@@ -133,7 +131,7 @@ if st.session_state.show_form and st.session_state.draft:
         subject = st.text_input("Subject")
         body = st.text_area("Body", value=st.session_state.draft, height=200)
         btn = st.form_submit_button("Send Email")
-        
+
         if btn:
             if not to.strip() or not subject.strip():
                 st.error("Please fill in both 'To' and 'Subject' fields.")
