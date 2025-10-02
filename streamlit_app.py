@@ -69,52 +69,22 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection error: {e}")
 
 def send_email_with_composio(to: str, subject: str, body: str):
-    """Send email using Composio tools and Gemini"""
+    """Send email using Composio Gmail action"""
     if not st.session_state.user_id:
         st.error("No user ID found.")
         return None
 
     try:
-        # Get Gmail tool definition from Composio
-        tools = composio_client.tools.get(
-            user_id=st.session_state.user_id,
-            tools=["GMAIL_SEND_EMAIL"]
-        )
-
-        # Build AI prompt
-        email_prompt = (
-            f"Please send an email with the following details using the GMAIL_SEND_EMAIL tool:\n"
-            f"To: {to}\n"
-            f"Subject: {subject}\n"
-            f"Body: {body}\n"
-        )
-
-        contents = [types.Content(role="user", parts=[types.Part.from_text(text=email_prompt)])]
-
-        config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-            safety_settings=[
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
-            ],
-            tools=tools
-        )
-
-        # Generate with Gemini + tools
-        resp = genai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents,
-            config=config
-        )
-
-        # Hand off response to Composio provider to actually execute tool calls
-        result = composio_client.provider.handle_tool_calls(
-            response=resp,
+        # Execute Gmail Send Email via Composio
+        result = composio_client.actions.execute(
+            action="GMAIL_SEND_EMAIL",
+            params={
+                "to": to,
+                "subject": subject,
+                "body": body
+            },
             user_id=st.session_state.user_id
         )
-
         return result
 
     except Exception as e:
