@@ -123,4 +123,10 @@ if st.session_state.show_form or st.session_state.connected_account_id:
 # --- UI: Connection Management ---
 st.divider()
 if not st.session_state.connected_account_id:
-    st.
+    st.subheader("Connect Your Account")
+    connect_composio_account(st.session_state.user_id)
+else:
+    st.success("✅ Google Account is Connected.")
+    if st.button("🔌 Disconnect Account"):
+        st.session_state.connected_account_id = None
+        st.rerun()
