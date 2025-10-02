@@ -10,10 +10,10 @@ st.title("📧 AI-Powered Email Agent")
 # --- Load Credentials & Initialize Clients ---
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    COMPOSIO_API_KEY = st.secrets["COMPOSIO_API_KEY"] 
+    COMPOSIO_API_KEY = st.secrets["COMPOSIO_API_KEY"]
     AUTH_CONFIG_ID = st.secrets["COMPOSIO_AUTH_CONFIG_ID"]
     
-    genai.configure(api_key=GEMINI_API_KEY)
+    genai_client = genai.Client(api_key=GEMINI_API_KEY)
     composio_client = Composio(api_key=COMPOSIO_API_KEY)
 except KeyError as e:
     st.error(f"Missing secret: {e}. Please add it to your Streamlit secrets.")
@@ -25,7 +25,7 @@ except Exception as e:
 # --- Initialize Session State ---
 for key, default_value in [
     ("connected_account_id", None),
-    ("user_id", "user-1"), 
+    ("user_id", "user-1"), # Using a default user ID for demonstration
     ("draft", ""),
     ("show_form", False),
 ]:
@@ -43,9 +43,14 @@ if "connected_account_id" in query_params and not st.session_state.connected_acc
 def generate_ai_response(prompt: str) -> str:
     """Generates an email draft using the Gemini API."""
     try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
+        config = types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_budget=0))
+        resp = genai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=config,
+        )
+        return resp.text.strip()
     except Exception as e:
         st.error(f"Gemini API Error: {e}")
         return "⚠️ Could not generate AI response."
@@ -56,25 +61,27 @@ def connect_composio_account(user_id: str):
         conn_req = composio_client.connected_accounts.link(
             user_id=user_id,
             auth_config_id=AUTH_CONFIG_ID,
-            callback_url="https://your-app.streamlit.app/",  # Update this
+            callback_url="https://evercreate.streamlit.app/",
         )
         st.link_button("🔗 Authenticate with Google", conn_req.redirect_url)
     except Exception as e:
         st.error(f"Connection Error: {e}")
 
-def send_email(to: str, subject: str, body: str):
-    """Sends an email using the Composio API."""
+def send_email(recipient: str, subject: str, body: str):
+    """Sends an email using the Composio 'tools.run' method with the correct parameters."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        response = composio_client.tools.invoke(
+        # Using the correct parameter name 'recipient_email' as per the documentation
+        response = composio_client.tools.run(
             user_id=st.session_state.user_id,
-            tool_id="GMAIL_SEND_MESSAGE",
+            tool="gmail",
+            action="send_email",
             params={
-                "to": to,
+                "recipient_email": recipient, # CORRECTED PARAMETER
                 "subject": subject,
-                "message": body
+                "body": body
             }
         )
         return response
@@ -105,15 +112,24 @@ if st.session_state.show_form or st.session_state.connected_account_id:
     with st.form("email_form"):
         to = st.text_input("To (Recipient Email)")
         subject = st.text_input("Subject")
-        body = st.text_area("Message Body", value=st.session_state.draft, height=200)
+        body = st.text_area(
+            "Email Body",
+            value=st.session_state.draft,
+            height=200
+        )
         
         submit = st.form_submit_button("Send Email")
+        
         if submit:
             if not all([to, subject, body]):
                 st.error("Please fill in all fields!")
             else:
                 with st.spinner("Sending email..."):
-                    response = send_email(to, subject, body)
+                    response = send_email(
+                        recipient=to,
+                        subject=subject,
+                        body=body
+                    )
                     if response:
                         st.success("✅ Email sent successfully!")
                         st.session_state.draft = ""
