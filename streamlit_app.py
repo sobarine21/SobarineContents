@@ -1,7 +1,7 @@
 import streamlit as st
 from google import genai
 from google.genai import types
-from composio import Composio, Action
+from composio import Composio
 
 # --- Page Setup ---
 st.set_page_config(page_title="AI Email Agent", layout="centered", page_icon="📧")
@@ -68,20 +68,22 @@ def connect_composio_account(user_id: str):
         st.error(f"Connection Error: {e}")
 
 def send_email(recipient: str, subject: str, body: str):
-    """Sends an email using the Composio execute_action method."""
+    """Sends an email using the Composio entity execute method."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # Using execute_action with the connected account
-        response = composio_client.execute_action(
-            action=Action.GMAIL_SEND_EMAIL,
+        # Get the entity for this user
+        entity = composio_client.get_entity(id=st.session_state.user_id)
+        
+        # Execute the Gmail send email action
+        response = entity.execute(
+            action="GMAIL_SEND_EMAIL",
             params={
                 "recipient_email": recipient,
                 "subject": subject,
                 "body": body
-            },
-            entity_id=st.session_state.user_id
+            }
         )
         return response
     except Exception as e:
