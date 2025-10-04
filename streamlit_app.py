@@ -58,32 +58,31 @@ def generate_ai_response(prompt: str) -> str:
 def connect_composio_account(user_id: str):
     """Initiates the Composio connection flow."""
     try:
-        conn_req = composio_client.connected_accounts.link(
+        conn_req = composio_client.connected_accounts.initiate(
             user_id=user_id,
             auth_config_id=AUTH_CONFIG_ID,
-            callback_url="https://evercreate.streamlit.app/",
+            callback_url="https://evercreate.streamlit.app/",  # change to your actual callback
         )
-        st.link_button("🔗 Authenticate with Google", conn_req.redirect_url)
+        st.markdown(f"[🔗 Authenticate with Google]({conn_req.redirect_url})")
     except Exception as e:
         st.error(f"Connection Error: {e}")
 
 def send_email(recipient: str, subject: str, body: str):
-    """Sends an email using the Composio entity execute method."""
+    """Sends an email using the Composio tool execution method."""
     if not st.session_state.connected_account_id:
         st.error("Connect your Gmail account first!")
         return None
     try:
-        # Get the entity for this user
-        entity = composio_client.get_entity(id=st.session_state.user_id)
-        
-        # Execute the Gmail send email action
-        response = entity.execute(
-            action="GMAIL_SEND_EMAIL",
-            params={
+        # Use composio.tools.execute instead of `get_entity` + `execute`
+        response = composio_client.tools.execute(
+            slug="GMAIL_SEND_EMAIL",
+            user_id=st.session_state.user_id,
+            connected_account_id=st.session_state.connected_account_id,
+            arguments={
                 "recipient_email": recipient,
                 "subject": subject,
-                "body": body
-            }
+                "body": body,
+            },
         )
         return response
     except Exception as e:
