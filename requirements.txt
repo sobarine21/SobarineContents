@@ -3,3 +3,4 @@ composio
 google.genai
 composio_google
 composio.tools
+plotly
